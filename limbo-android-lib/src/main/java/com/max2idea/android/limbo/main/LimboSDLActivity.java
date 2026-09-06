@@ -1000,6 +1000,14 @@ public class LimboSDLActivity extends SDLActivity
     }
 
     @Override
+    public void setOrientationBis(int w, int h, boolean resizable, String hint) {
+        // SDLのデフォルト処理では、仮想マシンの解像度（w > h）から強制的に SCREEN_ORIENTATION_SENSOR_LANDSCAPE が設定され、
+        // ユーザーが設定した画面回転（Auto / Portrait / Landscape 等）が上書きされてしまう不具合を防ぐため、
+        // SDLからの強制変更を無効化し、Limboの設定（ScreenUtils.updateOrientation）を適用する。
+        ScreenUtils.updateOrientation(this, -1);
+    }
+
+    @Override
     public void onConfigurationChanged(Configuration newConfig) {
         super.onConfigurationChanged(newConfig);
         invalidateOptionsMenu();
