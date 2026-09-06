@@ -1,0 +1,85 @@
+--- ui/sdl2.c.orig	2026-09-06 06:14:16.736526286 +0000
++++ ui/sdl2.c	2026-09-06 06:14:16.737181630 +0000
+@@ -100,11 +100,15 @@
+     }
+     assert(!scon->real_window);
+ 
++#if defined(__ANDROID__) || defined(__LIMBO__)
++    flags |= SDL_WINDOW_FULLSCREEN_DESKTOP;
++#else
+     if (gui_fullscreen) {
+         flags |= SDL_WINDOW_FULLSCREEN_DESKTOP;
+     } else {
+         flags |= SDL_WINDOW_RESIZABLE;
+     }
++#endif
+     if (scon->hidden) {
+         flags |= SDL_WINDOW_HIDDEN;
+     }
+@@ -133,7 +137,11 @@
+         SDL_GL_SetSwapInterval(0);
+     } else {
+         /* The SDL renderer is only used by sdl2-2D, when OpenGL is disabled */
++#if defined(__ANDROID__) || defined(__LIMBO__)
++        scon->real_renderer = SDL_CreateRenderer(scon->real_window, -1, SDL_RENDERER_ACCELERATED);
++#else
+         scon->real_renderer = SDL_CreateRenderer(scon->real_window, -1, 0);
++#endif
+     }
+     sdl_update_caption(scon);
+ }
+@@ -332,6 +340,9 @@
+     };
+     static uint32_t prev_state;
+ 
++    if (scon == NULL) {
++        return;
++    }
+     if (prev_state != state) {
+         qemu_input_update_buttons(scon->dcl.con, bmap, prev_state, state);
+         prev_state = state;
+--- ui/sdl2-2d.c.orig	2026-09-06 06:14:16.737330673 +0000
++++ ui/sdl2-2d.c	2026-09-06 06:14:16.737415398 +0000
+@@ -122,6 +122,14 @@
+                                       surface_width(new_surface),
+                                       surface_height(new_surface));
+     sdl2_2d_redraw(scon);
++
++#if defined(__ANDROID__) || defined(__LIMBO__)
++    if (scon->real_window) {
++        SDL_SetWindowFullscreen(scon->real_window, SDL_WINDOW_FULLSCREEN_DESKTOP);
++    }
++    extern void Android_JNI_SetVMResolution(int width, int height);
++    Android_JNI_SetVMResolution(surface_width(new_surface), surface_height(new_surface));
++#endif
+ }
+ 
+ void sdl2_2d_refresh(DisplayChangeListener *dcl)
+--- hw/display/vga.c.orig	2026-09-06 06:14:16.737622475 +0000
++++ hw/display/vga.c	2026-09-06 06:16:51.759230561 +0000
+@@ -1475,6 +1475,8 @@
+ /*
+  * graphic modes
+  */
++extern int limbo_vga_full_update;
++
+ static void vga_draw_graphic(VGACommonState *s, int full_update)
+ {
+     DisplaySurface *surface = qemu_console_surface(s->con);
+@@ -1689,7 +1691,7 @@
+         }
+         page0 = addr & s->vbe_size_mask;
+         page1 = (addr + bwidth - 1) & s->vbe_size_mask;
+-        if (full_update) {
++        if (full_update || limbo_vga_full_update) {
+             update = 1;
+         } else if (page1 < page0) {
+             /* scanline wraps from end of video memory to the start */
+@@ -1747,6 +1749,7 @@
+         dpy_gfx_update(s->con, 0, y_start,
+                        disp_width, y - y_start);
+     }
++    limbo_vga_full_update = 0;
+     g_free(snap);
+     memset(s->invalidated_y_table, 0, sizeof(s->invalidated_y_table));
+ }
