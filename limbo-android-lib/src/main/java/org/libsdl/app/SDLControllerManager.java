@@ -14,7 +14,7 @@ import android.util.Log;
 public class SDLControllerManager
 {
 
-    public static native int nativeSetupJNI();
+    public static native void nativeSetupJNI();
 
     public static native int nativeAddJoystick(int device_id, String name, String desc,
                                                int is_accelerometer, int nbuttons,
@@ -409,14 +409,14 @@ class SDLGenericMotionListener_API12 implements View.OnGenericMotionListener {
                     case MotionEvent.ACTION_SCROLL:
                         x = event.getAxisValue(MotionEvent.AXIS_HSCROLL, 0);
                         y = event.getAxisValue(MotionEvent.AXIS_VSCROLL, 0);
-                        SDLActivity.onNativeMouse(0, action, x, y);
+                        SDLActivity.onNativeMouse(0, action, x, y, false);
                         return true;
 
                     case MotionEvent.ACTION_HOVER_MOVE:
                         x = event.getX(0);
                         y = event.getY(0);
 
-                        SDLActivity.onNativeMouse(0, action, x, y);
+                        SDLActivity.onNativeMouse(0, action, x, y, false);
                         return true;
 
                     default:

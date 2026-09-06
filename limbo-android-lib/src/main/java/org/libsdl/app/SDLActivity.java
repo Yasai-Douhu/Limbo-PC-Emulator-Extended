@@ -28,6 +28,8 @@ import android.hardware.*;
 import android.content.pm.ActivityInfo;
 import android.content.pm.PackageManager;
 import android.content.pm.ApplicationInfo;
+import android.net.Uri;
+import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
 
@@ -109,19 +111,19 @@ public class SDLActivity
      */
     protected String[] getLibraries() {
         return new String[] {
-                "SDL2",
-                // "SDL2_image",
-                // "SDL2_mixer",
-                // "SDL2_net",
-                // "SDL2_ttf",
-                "main"
+                "SDL3",
+                "SDL2"
         };
     }
 
     // Load the .so
     public void loadLibraries() {
         for (String lib : getLibraries()) {
-            System.loadLibrary(lib);
+            try {
+                System.loadLibrary(lib);
+            } catch (Throwable t) {
+                Log.w("SDL", "Failed to load library: " + lib + " (" + t.getMessage() + ")");
+            }
         }
     }
 
@@ -582,27 +584,54 @@ public class SDLActivity
     }
 
     // C functions we call
-    public static native int nativeSetupJNI();
+    public static native String nativeGetVersion();
+    public static native void nativeSetupJNI();
+    public static native int nativeGetCompiledSubsystems();
+    public static native boolean nativeIsHIDAPIEnabled();
+    public static native void nativeInitMainThread();
+    public static native void nativeCleanupMainThread();
     public static native int nativeRunMain(String library, String function, Object arguments);
     public static native void nativeLowMemory();
+    public static native void nativeSendQuit();
     public static native void nativeQuit();
     public static native void nativePause();
     public static native void nativeResume();
+    public static native void nativeFocusChanged(boolean hasFocus);
     public static native void onNativeDropFile(String filename);
-    public static native void onNativeResize(int x, int y, int format, float rate);
+    public static native void nativeSetScreenResolution(int surfaceWidth, int surfaceHeight, int deviceWidth, int deviceHeight, float density, float rate);
+    public static native void onNativeResize();
     public static native void onNativeKeyDown(int keycode);
     public static native void onNativeKeyUp(int keycode);
+    public static native boolean onNativeSoftReturnKey();
     public static native void onNativeKeyboardFocusLost();
-    public static native void onNativeMouse(int button, int action, float x, float y);
+    public static native void onNativeMouse(int button, int action, float x, float y, boolean relative);
     public static native void onNativeTouch(int touchDevId, int pointerFingerId,
                                             int action, float x,
                                             float y, float p);
-    public static native void onNativeAccel(float x, float y, float z);
+    public static void onNativeAccel(float x, float y, float z) { }
+    public static native void onNativePen(int penId, int device_type, int button, int action, float x, float y, float p);
     public static native void onNativeClipboardChanged();
+    public static native void onNativeSurfaceCreated();
     public static native void onNativeSurfaceChanged();
     public static native void onNativeSurfaceDestroyed();
+    public static native void onNativeScreenKeyboardShown();
+    public static native void onNativeScreenKeyboardHidden();
     public static native String nativeGetHint(String name);
+    public static native boolean nativeGetHintBoolean(String name, boolean default_value);
     public static native void nativeSetenv(String name, String value);
+    public static native void nativeSetNaturalOrientation(int orientation);
+    public static native void onNativeRotationChanged(int rotation);
+    public static native void onNativeInsetsChanged(int left, int right, int top, int bottom);
+    public static native void nativeAddTouch(int touchId, String name);
+    public static native void nativePermissionResult(int requestCode, boolean result);
+    public static native void onNativeLocaleChanged();
+    public static native void onNativeDarkModeChanged(boolean enabled);
+    public static native boolean nativeAllowRecreateActivity();
+    public static native int nativeCheckSDLThreadCounter();
+    public static native void onNativeFileDialog(int requestCode, String[] filelist, int filter);
+    public static native void onNativePinchStart(float span_x, float span_y, float focus_x, float focus_y);
+    public static native void onNativePinchUpdate(float scale, float span_x, float span_y, float focus_x, float focus_y);
+    public static native void onNativePinchEnd();
 
     /**
      * This method is called by SDL using JNI.
@@ -710,8 +739,282 @@ public class SDLActivity
     /**
      * This method is called by SDL using JNI.
      */
-    public static Context getContext() {
+    public static Activity getContext() {
         return SDL.getContext();
+    }
+
+    /**
+     * This method is called by SDL using JNI.
+     */
+    public static void minimizeWindow() {
+        if (mSingleton == null) {
+            return;
+        }
+        Intent startMain = new Intent(Intent.ACTION_MAIN);
+        startMain.addCategory(Intent.CATEGORY_HOME);
+        startMain.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        mSingleton.startActivity(startMain);
+    }
+
+    /**
+     * This method is called by SDL using JNI.
+     */
+    public static boolean shouldMinimizeOnFocusLoss() {
+        return false;
+    }
+
+    /**
+     * This method is called by SDL using JNI.
+     */
+    public static boolean supportsRelativeMouse() {
+        return false;
+    }
+
+    /**
+     * This method is called by SDL using JNI.
+     */
+    public static boolean setRelativeMouseEnabled(boolean enabled) {
+        return false;
+    }
+
+    /**
+     * This method is called by SDL using JNI.
+     */
+    public static void setBackButtonTrapEnabled(boolean enabled) {
+    }
+
+    /**
+     * This method is called by SDL using JNI.
+     */
+    public static void manualBackButton() {
+        if (mSingleton != null) {
+            mSingleton.runOnUiThread(new Runnable() {
+                @Override
+                public void run() {
+                    mSingleton.onBackPressed();
+                }
+            });
+        }
+    }
+
+    /**
+     * This method is called by SDL using JNI.
+     */
+    public static boolean isVRHeadset() {
+        if (Build.MANUFACTURER.equals("Oculus") && Build.MODEL.startsWith("Quest")) {
+            return true;
+        }
+        if (Build.MANUFACTURER.equals("Pico")) {
+            return true;
+        }
+        return false;
+    }
+
+    public static double getDiagonal() {
+        DisplayMetrics metrics = new DisplayMetrics();
+        Activity activity = getContext();
+        if (activity == null) {
+            return 0.0;
+        }
+        activity.getWindowManager().getDefaultDisplay().getMetrics(metrics);
+        double dWidthInches = metrics.widthPixels / (double)metrics.xdpi;
+        double dHeightInches = metrics.heightPixels / (double)metrics.ydpi;
+        return Math.sqrt((dWidthInches * dWidthInches) + (dHeightInches * dHeightInches));
+    }
+
+    /**
+     * This method is called by SDL using JNI.
+     */
+    public static boolean isTablet() {
+        return (getDiagonal() >= 7.0);
+    }
+
+    /**
+     * This method is called by SDL using JNI.
+     */
+    public static boolean isChromebook() {
+        if (getContext() != null) {
+            if (getContext().getPackageManager().hasSystemFeature("org.chromium.arc")
+                || getContext().getPackageManager().hasSystemFeature("org.chromium.arc.device_management")) {
+                return true;
+            }
+        }
+        return (Build.MODEL != null && Build.MODEL.startsWith("sdk_gpc_"));
+    }
+
+    /**
+     * This method is called by SDL using JNI.
+     */
+    public static boolean isDeXMode() {
+        if (Build.VERSION.SDK_INT < 24) {
+            return false;
+        }
+        try {
+            final Configuration config = getContext().getResources().getConfiguration();
+            final Class<?> configClass = config.getClass();
+            return configClass.getField("SEM_DESKTOP_MODE_ENABLED").getInt(configClass)
+                    == configClass.getField("semDesktopModeEnabled").getInt(config);
+        } catch(Exception ignored) {
+            return false;
+        }
+    }
+
+    /**
+     * This method is called by SDL using JNI.
+     */
+    static String getDeviceFormFactor() {
+        if (isAndroidTV()) {
+            return "tv";
+        } else if (isVRHeadset()) {
+            return "headset";
+        } else if (isTablet()) {
+            return "tablet";
+        } else {
+            return "phone";
+        }
+    }
+
+    /**
+     * This method is called by SDL using JNI.
+     */
+    public static boolean showToast(final String message, final int duration, final int gravity, final int xOffset, final int yOffset) {
+        if (null == mSingleton) {
+            return false;
+        }
+        mSingleton.runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    Toast toast = Toast.makeText(mSingleton, message, duration);
+                    if (gravity >= 0) {
+                        toast.setGravity(gravity, xOffset, yOffset);
+                    }
+                    toast.show();
+                } catch (Exception ex) {
+                    Log.e(TAG, "showToast failed: " + ex.getMessage());
+                }
+            }
+        });
+        return true;
+    }
+
+    /**
+     * This method is called by SDL using JNI.
+     */
+    public static boolean openURL(String url) {
+        if (mSingleton == null) return false;
+        try {
+            Intent i = new Intent(Intent.ACTION_VIEW);
+            i.setData(Uri.parse(url));
+            i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            mSingleton.startActivity(i);
+            return true;
+        } catch (Exception ex) {
+            return false;
+        }
+    }
+
+    /**
+     * This method is called by SDL using JNI.
+     */
+    public static void requestPermission(String permission, int requestCode) {
+        if (Build.VERSION.SDK_INT < 23) {
+            nativePermissionResult(requestCode, true);
+            return;
+        }
+        Activity activity = getContext();
+        if (activity != null) {
+            if (activity.checkSelfPermission(permission) != PackageManager.PERMISSION_GRANTED) {
+                activity.requestPermissions(new String[]{permission}, requestCode);
+            } else {
+                nativePermissionResult(requestCode, true);
+            }
+        }
+    }
+
+    /**
+     * This method is called by SDL using JNI.
+     */
+    public static int openFileDescriptor(String uri, String mode) throws Exception {
+        if (mSingleton == null) {
+            return -1;
+        }
+        try {
+            ParcelFileDescriptor pfd = mSingleton.getContentResolver().openFileDescriptor(Uri.parse(uri), mode);
+            return pfd != null ? pfd.detachFd() : -1;
+        } catch (Exception e) {
+            Log.e(TAG, "openFileDescriptor error: " + e.getMessage());
+            return -1;
+        }
+    }
+
+    /**
+     * This method is called by SDL using JNI.
+     */
+    public static boolean showFileDialog(String[] filters, boolean allowMultiple,
+        int type, String initialPath, int requestCode) {
+        return false;
+    }
+
+    /**
+     * This method is called by SDL using JNI.
+     */
+    public static String getPreferredLocales() {
+        String result = "";
+        if (Build.VERSION.SDK_INT >= 24) {
+            android.os.LocaleList locales = android.os.LocaleList.getAdjustedDefault();
+            for (int i = 0; i < locales.size(); i++) {
+                if (i != 0) result += ",";
+                result += formatLocale(locales.get(i));
+            }
+        } else {
+            java.util.Locale currentLocale = java.util.Locale.getDefault();
+            if (currentLocale != null) {
+                result = formatLocale(currentLocale);
+            }
+        }
+        return result;
+    }
+
+    public static String formatLocale(java.util.Locale locale) {
+        String lang = locale.getLanguage();
+        if ("in".equals(lang)) {
+            lang = "id";
+        } else if ("".equals(lang)) {
+            lang = "und";
+        }
+        String country = locale.getCountry();
+        if (country != null && !country.isEmpty()) {
+            return lang + "_" + country;
+        }
+        return lang;
+    }
+
+    /**
+     * This method is called by SDL using JNI.
+     */
+    public static int createCustomCursor(int[] colors, int width, int height, int hotSpotX, int hotSpotY) {
+        return 0;
+    }
+
+    /**
+     * This method is called by SDL using JNI.
+     */
+    public static void destroyCustomCursor(int cursorID) {
+    }
+
+    /**
+     * This method is called by SDL using JNI.
+     */
+    public static boolean setCustomCursor(int cursorID) {
+        return false;
+    }
+
+    /**
+     * This method is called by SDL using JNI.
+     */
+    public static boolean setSystemCursor(int cursorID) {
+        return false;
     }
 
     /**
@@ -808,6 +1111,13 @@ public class SDLActivity
         return mSingleton.commandHandler.post(new ShowTextInputTask(x, y, w, h));
     }
 
+    /**
+     * This method is called by SDL using JNI (SDL3).
+     */
+    public static boolean showTextInput(int input_type, int x, int y, int w, int h) {
+        return showTextInput(x, y, w, h);
+    }
+
     public static boolean isTextInputEvent(KeyEvent event) {
 
         // Key pressed with Ctrl should be sent as SDL_KEYDOWN/SDL_KEYUP and not SDL_TEXTINPUT
@@ -831,6 +1141,23 @@ public class SDLActivity
     }
 
     // Input
+
+    /**
+     * This method is called by SDL using JNI.
+     */
+    public static void initTouch() {
+        int[] ids = InputDevice.getDeviceIds();
+
+        for (int id : ids) {
+            InputDevice device = InputDevice.getDevice(id);
+            /* Allow SOURCE_TOUCHSCREEN and also Virtual InputDevices because they can send TOUCHSCREEN events */
+            if (device != null && ((device.getSources() & InputDevice.SOURCE_TOUCHSCREEN) == InputDevice.SOURCE_TOUCHSCREEN
+                    || device.isVirtual())) {
+
+                nativeAddTouch(device.getId(), device.getName());
+            }
+        }
+    }
 
     /**
      * This method is called by SDL using JNI.
@@ -1240,7 +1567,11 @@ class SDLSurface extends SurfaceView implements SurfaceHolder.Callback,
     @Override
     public void surfaceCreated(SurfaceHolder holder) {
         Log.v("SDL", "surfaceCreated()");
-        holder.setType(SurfaceHolder.SURFACE_TYPE_GPU);
+        try {
+            SDLActivity.onNativeSurfaceCreated();
+        } catch (Throwable t) {
+            Log.w("SDL", "onNativeSurfaceCreated not available: " + t.getMessage());
+        }
     }
 
     // サーフェスを失った時に呼び出される
@@ -1248,12 +1579,20 @@ class SDLSurface extends SurfaceView implements SurfaceHolder.Callback,
     public void surfaceDestroyed(SurfaceHolder holder) {
         Log.v("SDL", "surfaceDestroyed()");
 
-        // バックグラウンド実行時やPiP時はネイティブポーズを回避する
-        SDLActivity.mNextNativeState = SDLActivity.NativeState.PAUSED;
-        SDLActivity.handleNativeState();
+        // バックグラウンド実行時やVM稼働中はネイティブポーズを回避する
+        if (SDLActivity.mSingleton != null && SDLActivity.mSingleton.shouldKeepRunning()) {
+            Log.i("SDL", "surfaceDestroyed: Background / VM execution active, preserving RESUMED state");
+        } else {
+            SDLActivity.mNextNativeState = SDLActivity.NativeState.PAUSED;
+            SDLActivity.handleNativeState();
+        }
 
         SDLActivity.mIsSurfaceReady = false;
-        SDLActivity.onNativeSurfaceDestroyed();
+        try {
+            SDLActivity.onNativeSurfaceDestroyed();
+        } catch (Throwable t) {
+            Log.w("SDL", "onNativeSurfaceDestroyed error: " + t.getMessage());
+        }
     }
 
     // Called when the surface is resized
@@ -1309,7 +1648,19 @@ class SDLSurface extends SurfaceView implements SurfaceHolder.Callback,
 
         mWidth = width;
         mHeight = height;
-        SDLActivity.onNativeResize(width, height, sdlFormat, mDisplay.getRefreshRate());
+        int nDeviceWidth = width;
+        int nDeviceHeight = height;
+        float density = 1.0f;
+        try {
+            android.util.DisplayMetrics realMetrics = new android.util.DisplayMetrics();
+            mDisplay.getRealMetrics(realMetrics);
+            nDeviceWidth = realMetrics.widthPixels;
+            nDeviceHeight = realMetrics.heightPixels;
+            density = (float)realMetrics.densityDpi / 160.0f;
+        } catch (Exception ignored) {
+        }
+        SDLActivity.nativeSetScreenResolution(width, height, nDeviceWidth, nDeviceHeight, density, mDisplay.getRefreshRate());
+        SDLActivity.onNativeResize();
         Log.v("SDL", "Window size: " + width + "x" + height);
 
 
@@ -1436,7 +1787,7 @@ class SDLSurface extends SurfaceView implements SurfaceHolder.Callback,
                     mouseButton = 1;    // oh well.
                 }
             }
-            SDLActivity.onNativeMouse(mouseButton, action, event.getX(0), event.getY(0));
+            SDLActivity.onNativeMouse(mouseButton, action, event.getX(0), event.getY(0), false);
         } else {
             switch(action) {
                 case MotionEvent.ACTION_MOVE:

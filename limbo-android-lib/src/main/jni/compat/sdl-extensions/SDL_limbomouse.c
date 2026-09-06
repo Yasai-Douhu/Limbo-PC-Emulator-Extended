@@ -1,5 +1,6 @@
 /*
 Copyright (C) Max Kastanas 2012
+Modifications for SDL3 / sdl2-compat portability 2026
 
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -10,18 +11,12 @@ Copyright (C) Max Kastanas 2012
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
- *
  */
 #include <stdbool.h>
-#include "src/SDL_internal.h"
+#include <string.h>
+#include <jni.h>
+#include <SDL.h>
 #include "SDL_limbomouse.h"
-#include "SDL_events.h"
-#include "events/SDL_mouse_c.h"
-#include "core/android/SDL_android.h"
 
 #define ACTION_DOWN 0
 #define ACTION_UP 1
@@ -34,72 +29,92 @@ Copyright (C) Max Kastanas 2012
 #define BUTTON_BACK 8
 #define BUTTON_FORWARD 16
 
-#define ORIENTATION_PORTRAIT 1
+static int x_min = 0, x_max = 0, y_min = 0, y_max = 0;
+static bool checkBounds = false;
 
-extern SDL_Window *Android_Window;
-int x_min = 0, x_max = 0, y_min = 0, y_max = 0;
-bool checkBounds = false;
-
+// SDL公開イベントAPIを用いてマウスイベントを送信
 JNIEXPORT void JNICALL Java_com_max2idea_android_limbo_jni_VMExecutor_nativeMouseEvent(
         JNIEnv* env, jobject thiz,
-		int button, int action, int relative, int x, int y) {
+        int button, int action, int relative, int x, int y) {
 
-    if (!Android_Window) {
-        return;
+    SDL_Window *win = SDL_GetGrabbedWindow();
+    if (!win) {
+        win = SDL_GetMouseFocus();
     }
-        
-    //XXX: If the guest input device is not usb-tablet (ps2/usb) QEMU overrides to relative mode
-    // in order to provide a workaround we force the mode. The user will still need to disable 
-    // mouse acceleration within the guest and calibrate the mouse in limbo.
-    SDL_bool relativeMouseMode = relative?SDL_TRUE:SDL_FALSE; 
-    if(SDL_GetRelativeMouseMode() != relativeMouseMode ) {
-    	SDL_SetRelativeMouseMode(relativeMouseMode);
+    if (!win) {
+        win = SDL_GetKeyboardFocus();
+    }
+    Uint32 windowID = win ? SDL_GetWindowID(win) : 0;
+
+    SDL_bool relativeMouseMode = relative ? SDL_TRUE : SDL_FALSE;
+    if (SDL_GetRelativeMouseMode() != relativeMouseMode) {
+        SDL_SetRelativeMouseMode(relativeMouseMode);
     }
 
-	SDL_Mouse *mouse = SDL_GetMouse();
-	// Adjust x, y if go out of bounds
-	if(checkBounds) {
-		if(relative && mouse->x + x < x_min)
-			x = x_min -mouse->x;
-		if(relative && mouse->x + x > x_max)
-			x = x_max - mouse->x;
-		if(relative && mouse->y + y < y_min)
-			y = y_min -mouse->y;
-		if(relative && mouse->y + y > y_max)
-			y = y_max - mouse->y;
-		if(!relative && x < x_min)
-			x = x_min;
-		if(!relative && x > x_max)
-			x = x_max;
-		if(!relative && y < y_min)
-			y = y_min;
-		if(!relative && y > y_max)
-			y = y_max;			
-		
-	}
-	
-    switch(action) {
+    if (checkBounds) {
+        if (!relative) {
+            if (x < x_min) x = x_min;
+            if (x > x_max) x = x_max;
+            if (y < y_min) y = y_min;
+            if (y > y_max) y = y_max;
+        }
+    }
+
+    Uint8 sdl_button = SDL_BUTTON_LEFT;
+    if (button == BUTTON_PRIMARY) sdl_button = SDL_BUTTON_LEFT;
+    else if (button == BUTTON_SECONDARY) sdl_button = SDL_BUTTON_RIGHT;
+    else if (button == BUTTON_TERTIARY) sdl_button = SDL_BUTTON_MIDDLE;
+
+    SDL_Event ev;
+    memset(&ev, 0, sizeof(ev));
+
+    switch (action) {
         case ACTION_DOWN:
-            if(!relative){
-                SDL_SendMouseMotion(Android_Window, 0, 0, x, y);
-            }
-            SDL_SendMouseButton(Android_Window, SDL_TOUCH_MOUSEID, SDL_PRESSED, button);
-            break;
-
         case ACTION_UP:
-            if(!relative){
-                SDL_SendMouseMotion(Android_Window, 0, 0, x, y);
+            if (!relative) {
+                SDL_Event motion_ev;
+                memset(&motion_ev, 0, sizeof(motion_ev));
+                motion_ev.type = SDL_MOUSEMOTION;
+                motion_ev.motion.windowID = windowID;
+                motion_ev.motion.which = SDL_TOUCH_MOUSEID;
+                motion_ev.motion.x = x;
+                motion_ev.motion.y = y;
+                SDL_PushEvent(&motion_ev);
             }
-            SDL_SendMouseButton(Android_Window, SDL_TOUCH_MOUSEID, SDL_RELEASED, button);
+            ev.type = (action == ACTION_DOWN) ? SDL_MOUSEBUTTONDOWN : SDL_MOUSEBUTTONUP;
+            ev.button.windowID = windowID;
+            ev.button.which = SDL_TOUCH_MOUSEID;
+            ev.button.button = sdl_button;
+            ev.button.state = (action == ACTION_DOWN) ? SDL_PRESSED : SDL_RELEASED;
+            ev.button.clicks = 1;
+            ev.button.x = x;
+            ev.button.y = y;
+            SDL_PushEvent(&ev);
             break;
 
         case ACTION_MOVE:
         case ACTION_HOVER_MOVE:
-            SDL_SendMouseMotion(Android_Window, 0, relative, (int) x, (int) y);
+            ev.type = SDL_MOUSEMOTION;
+            ev.motion.windowID = windowID;
+            ev.motion.which = SDL_TOUCH_MOUSEID;
+            if (relative) {
+                ev.motion.xrel = x;
+                ev.motion.yrel = y;
+            } else {
+                ev.motion.x = x;
+                ev.motion.y = y;
+            }
+            SDL_PushEvent(&ev);
             break;
 
         case ACTION_SCROLL:
-            SDL_SendMouseWheel(Android_Window, SDL_TOUCH_MOUSEID, x, y, SDL_MOUSEWHEEL_NORMAL);
+            ev.type = SDL_MOUSEWHEEL;
+            ev.wheel.windowID = windowID;
+            ev.wheel.which = SDL_TOUCH_MOUSEID;
+            ev.wheel.x = x;
+            ev.wheel.y = y;
+            ev.wheel.direction = SDL_MOUSEWHEEL_NORMAL;
+            SDL_PushEvent(&ev);
             break;
 
         default:
@@ -110,9 +125,9 @@ JNIEXPORT void JNICALL Java_com_max2idea_android_limbo_jni_VMExecutor_nativeMous
 JNIEXPORT void JNICALL Java_com_max2idea_android_limbo_jni_VMExecutor_nativeMouseBounds(
         JNIEnv* env, jobject thiz, int xmin, int xmax, int ymin, int ymax) {
     checkBounds = true;
-    x_min = xmin+1;
-	x_max = xmax-1;
-	y_min = ymin+1;
-	y_max = ymax-1;     
+    x_min = xmin + 1;
+    x_max = xmax - 1;
+    y_min = ymin + 1;
+    y_max = ymax - 1;
 }
 

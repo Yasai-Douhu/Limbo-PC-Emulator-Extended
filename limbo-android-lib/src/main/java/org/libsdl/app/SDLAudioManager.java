@@ -183,5 +183,7 @@ public class SDLAudioManager
         }
     }
 
-    public static native int nativeSetupJNI();
+    public static native void nativeSetupJNI();
+    public static native void nativeAddAudioDevice(boolean recording, String name, int device_id);
+    public static native void nativeRemoveAudioDevice(boolean recording, int device_id);
 }

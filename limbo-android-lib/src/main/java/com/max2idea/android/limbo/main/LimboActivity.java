@@ -1205,6 +1205,11 @@ public class LimboActivity extends AppCompatActivity
 
         // SDL library
         if (Config.enable_SDL) {
+            try {
+                System.loadLibrary("SDL3");
+            } catch (Throwable t) {
+                // SDL3 が存在しない環境用フォールバック
+            }
             if (Build.VERSION.SDK_INT >= 26)
                 System.loadLibrary("compat-SDL2-addons");
             System.loadLibrary("SDL2");

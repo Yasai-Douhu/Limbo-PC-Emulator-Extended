@@ -1,5 +1,6 @@
 package org.libsdl.app;
 
+import android.app.Activity;
 import android.content.Context;
 
 /**
@@ -26,12 +27,16 @@ public class SDL {
 
     // This function stores the current activity (SDL or not)
     public static void setContext(Context context) {
-        mContext = context;
+        if (context instanceof Activity) {
+            mContext = (Activity) context;
+        } else {
+            mContext = null;
+        }
     }
 
-    public static Context getContext() {
+    public static Activity getContext() {
         return mContext;
     }
 
-    protected static Context mContext;
+    protected static Activity mContext;
 }
