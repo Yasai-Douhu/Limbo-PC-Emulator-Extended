@@ -55,10 +55,13 @@ public class LimboEmuActivity extends LimboActivity {
 
     protected void loadQEMULib() {
         try {
-            System.loadLibrary("qemu-system-i386");
-        } catch (Error ex) {
             System.loadLibrary("qemu-system-x86_64");
+        } catch (Throwable ex) {
+            try {
+                System.loadLibrary("qemu-system-i386");
+            } catch (Throwable e) {
+                android.util.Log.e("LimboEmuActivity", "Failed to load QEMU native library: " + e.getMessage());
+            }
         }
-
     }
 }

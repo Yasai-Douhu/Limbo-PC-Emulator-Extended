@@ -1193,6 +1193,12 @@ public class LimboActivity extends AppCompatActivity
         //Glib deps
         System.loadLibrary("compat-musl");
 
+        try {
+            System.loadLibrary("intl");
+        } catch (Throwable t) {
+            // libintl がない場合はスキップ
+        }
+
         //Glib
         System.loadLibrary("glib-2.0");
 
@@ -1207,6 +1213,8 @@ public class LimboActivity extends AppCompatActivity
         }
 
         System.loadLibrary("compat-SDL2-ext");
+
+        // libslirp は libqemu-system-x86_64.so に静的統合済みのためロード不要
 
         //Limbo needed for vmexecutor
         System.loadLibrary("limbo");
