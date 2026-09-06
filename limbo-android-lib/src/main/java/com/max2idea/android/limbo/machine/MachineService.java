@@ -190,7 +190,13 @@ public class MachineService extends Service {
                 .setLargeIcon(BitmapFactory.decodeResource(service.getResources(), R.drawable.limbo)).build();
         mNotification.tickerText = text;
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            service.startForeground(notifID, mNotification, android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE);
+            try {
+                // FOREGROUND_SERVICE_TYPE_DATA_SYNC (1) を指定
+                service.startForeground(notifID, mNotification, 1);
+            } catch (Throwable t) {
+                android.util.Log.w("MachineService", "Failed to startForeground with dataSync, falling back", t);
+                service.startForeground(notifID, mNotification);
+            }
         } else {
             service.startForeground(notifID, mNotification);
         }

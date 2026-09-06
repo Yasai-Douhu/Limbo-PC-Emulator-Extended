@@ -182,7 +182,18 @@ public class LimboSDLActivity extends SDLActivity
                 KeyEvent.KEYCODE_SHIFT_LEFT, code}, 100);
     }
 
+    @Override
     public void onDestroy() {
+        Log.i(TAG, "onDestroy() called. shouldKeepRunning=" + shouldKeepRunning());
+
+        // バックグラウンド実行またはVM稼働中は SDL スレッドおよび QEMU の稼働を維持する
+        if (shouldKeepRunning()) {
+            removeListeners();
+            // quit や mSuspendOnly はセットせず、スレッドとVMを維持して終了する
+            super.onDestroy();
+            return;
+        }
+
         mNextNativeState = NativeState.PAUSED;
         mIsResumedCalled = false;
 
@@ -616,18 +627,12 @@ public class LimboSDLActivity extends SDLActivity
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N && isInPictureInPictureMode()) {
             return 0;
         }
-        // 1. 最新の WindowInsets から取得を試みる
+        // 1. WindowInsets から取得を試みる
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             View decor = getWindow().getDecorView();
             if (decor != null) {
                 WindowInsets rootInsets = decor.getRootWindowInsets();
                 if (rootInsets != null) {
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                        android.graphics.Insets navInsets = rootInsets.getInsets(WindowInsets.Type.navigationBars());
-                        if (navInsets.bottom > 0) {
-                            return navInsets.bottom;
-                        }
-                    }
                     int bottom = rootInsets.getSystemWindowInsetBottom();
                     if (bottom > 0) {
                         return bottom;
@@ -796,17 +801,19 @@ public class LimboSDLActivity extends SDLActivity
 
     @Override
     protected boolean shouldKeepRunning() {
-        // PiPモード中のみ描画ステートをRESUMED維持（画面が存在するため）
+        // PiPモード中、バックグラウンド実行有効時、またはVM実行中はRESUMEDステートを維持（QEMUのVM継続実行）
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N && isInPictureInPictureMode()) {
             return true;
         }
-        return false;
+        if (LimboSettingsManager.getEnableBackgroundExecution(this)) {
+            return true;
+        }
+        return MachineController.getInstance().isRunning();
     }
 
     @Override
     protected void onPause() {
-        if ((shouldKeepRunning() || LimboSettingsManager.getEnableBackgroundExecution(this))
-                && MachineController.getInstance().isRunning()) {
+        if (shouldKeepRunning() && MachineController.getInstance().isRunning()) {
             // バックグラウンド実行またはPiP有効時: VMの実行通知をRunningのまま維持
             notifyAction(MachineAction.UPDATE_NOTIFICATION, getString(R.string.VMRunning));
             super.onPause();
@@ -893,6 +900,12 @@ public class LimboSDLActivity extends SDLActivity
                 setFullscreen();
             }
         }, 500);
+        handler.postDelayed(new Runnable() {
+            @Override
+            public void run() {
+                setFullscreen();
+            }
+        }, 1000);
     }
 
     protected void onResume() {

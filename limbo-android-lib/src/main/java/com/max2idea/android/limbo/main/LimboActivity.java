@@ -1212,7 +1212,11 @@ public class LimboActivity extends AppCompatActivity
 
         System.loadLibrary("compat-SDL2-ext");
 
-        // libslirp は libqemu-system-x86_64.so に静的統合済みのためロード不要
+        try {
+            System.loadLibrary("slirp");
+        } catch (Throwable t) {
+            // libslirp がない環境ではスキップ
+        }
 
         //Limbo needed for vmexecutor
         System.loadLibrary("limbo");

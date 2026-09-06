@@ -201,8 +201,10 @@ public class SDLActivity
         // Set up JNI
         SDL.setupJNI();
 
-        // Initialize state
-        SDL.initialize();
+        // Initialize state (スレッドが稼働中でない場合のみ初期化)
+        if (mSDLThread == null) {
+            SDL.initialize();
+        }
 
         // So we can call stuff from static callbacks
         mSingleton = this;
@@ -321,6 +323,18 @@ public class SDLActivity
         Log.v(TAG, "onDestroy()");
 
         //LIMBO:
+        // バックグラウンド実行またはVM稼働中は SDL スレッドおよびネイティブ状態を維持する
+        if (shouldKeepRunning()) {
+            Log.i(TAG, "onDestroy(): Background execution enabled, preserving SDLThread and native state.");
+            mSurface = null;
+            mLayout = null;
+            if (mSingleton == this) {
+                mSingleton = null;
+            }
+            super.onDestroy();
+            return;
+        }
+
         //XXX: don't stop the sdl running
         if(SDLActivity.mSuspendOnly) {
             Thread currSDLThread = mSDLThread;
@@ -389,7 +403,14 @@ public class SDLActivity
     public static void handleNativeState() {
 
         if (mNextNativeState == mCurrentNativeState) {
-            // Already in same state, discard.
+            // 同一状態の場合は破棄するが、バックグラウンド維持等でRESUMEDのまま新規Surfaceが再接続された場合は
+            // ネイティブリジュームおよびサーフェスの復帰処理を確実に走らせる
+            if (mCurrentNativeState == NativeState.RESUMED && mIsSurfaceReady) {
+                nativeResume();
+                if (mSurface != null) {
+                    mSurface.handleResume();
+                }
+            }
             return;
         }
 
@@ -423,12 +444,14 @@ public class SDLActivity
                     // FIXME: Why aren't we enabling sensor input at start?
 
                     mSDLThread = new Thread(new SDLMain(), "SDLThread");
-                    mSurface.enableSensor(Sensor.TYPE_ACCELEROMETER, true);
+                    if (mSurface != null)
+                        mSurface.enableSensor(Sensor.TYPE_ACCELEROMETER, true);
                     mSDLThread.start();
                 }
 
                 nativeResume();
-                mSurface.handleResume();
+                if (mSurface != null)
+                    mSurface.handleResume();
                 mCurrentNativeState = mNextNativeState;
             }
         }
@@ -1225,13 +1248,9 @@ class SDLSurface extends SurfaceView implements SurfaceHolder.Callback,
     public void surfaceDestroyed(SurfaceHolder holder) {
         Log.v("SDL", "surfaceDestroyed()");
 
-        // SurfaceViewの破棄時は描画先が存在しないため、確実にネイティブ描画を一時停止する
-        SDLActivity.nativePause();
-        if (SDLActivity.mSurface != null) {
-            SDLActivity.mSurface.handlePause();
-        }
-        SDLActivity.mCurrentNativeState = SDLActivity.NativeState.PAUSED;
+        // バックグラウンド実行時やPiP時はネイティブポーズを回避する
         SDLActivity.mNextNativeState = SDLActivity.NativeState.PAUSED;
+        SDLActivity.handleNativeState();
 
         SDLActivity.mIsSurfaceReady = false;
         SDLActivity.onNativeSurfaceDestroyed();
