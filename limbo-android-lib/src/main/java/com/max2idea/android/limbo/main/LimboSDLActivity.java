@@ -41,6 +41,7 @@ import android.view.Menu;
 import android.view.MenuItem;
 import android.view.MotionEvent;
 import android.view.View;
+import android.view.WindowInsets;
 import android.view.WindowManager;
 import android.widget.EditText;
 import android.widget.LinearLayout;
@@ -52,6 +53,9 @@ import android.widget.TextView;
 
 import androidx.appcompat.app.ActionBar;
 import androidx.appcompat.widget.Toolbar;
+import androidx.core.view.OnApplyWindowInsetsListener;
+import androidx.core.view.ViewCompat;
+import androidx.core.view.WindowInsetsCompat;
 
 import android.app.PictureInPictureParams;
 import android.util.Rational;
@@ -581,6 +585,75 @@ public class LimboSDLActivity extends SDLActivity
                 sendMouseScroll(deltaY);
             }
         });
+
+        // システムナビゲーションバーのめり込み防止:
+        // WindowInsetsおよびリソースからナビゲーションバーの高さを取得し、キーボード下部にパディングを付与
+        final View decorView = getWindow().getDecorView();
+        if (decorView != null) {
+            ViewCompat.setOnApplyWindowInsetsListener(decorView, new OnApplyWindowInsetsListener() {
+                @Override
+                public WindowInsetsCompat onApplyWindowInsets(View v, WindowInsetsCompat insets) {
+                    applyKeyboardBottomPadding();
+                    return ViewCompat.onApplyWindowInsets(v, insets);
+                }
+            });
+        }
+        applyKeyboardBottomPadding();
+    }
+
+    /**
+     * システムナビゲーションバーの物理的な高さを取得
+     */
+    private int getNavigationBarHeight() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N && isInPictureInPictureMode()) {
+            return 0;
+        }
+        // 1. 最新の WindowInsets から取得を試みる
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            View decor = getWindow().getDecorView();
+            if (decor != null) {
+                WindowInsets rootInsets = decor.getRootWindowInsets();
+                if (rootInsets != null) {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                        android.graphics.Insets navInsets = rootInsets.getInsets(WindowInsets.Type.navigationBars());
+                        if (navInsets.bottom > 0) {
+                            return navInsets.bottom;
+                        }
+                    }
+                    int bottom = rootInsets.getSystemWindowInsetBottom();
+                    if (bottom > 0) {
+                        return bottom;
+                    }
+                }
+            }
+        }
+        // 2. リソースIDからフォールバック取得
+        int resourceId = getResources().getIdentifier("navigation_bar_height", "dimen", "android");
+        if (resourceId > 0) {
+            return getResources().getDimensionPixelSize(resourceId);
+        }
+        return 0;
+    }
+
+    /**
+     * 仮想キーボードの下部にナビゲーションバー分のパディングを適用してめり込みを防止
+     */
+    public void applyKeyboardBottomPadding() {
+        if (mVirtualKeyboardContainer == null) return;
+        final int navBottom = getNavigationBarHeight();
+        mVirtualKeyboardContainer.post(new Runnable() {
+            @Override
+            public void run() {
+                if (mVirtualKeyboardContainer != null) {
+                    mVirtualKeyboardContainer.setPadding(
+                            mVirtualKeyboardContainer.getPaddingLeft(),
+                            mVirtualKeyboardContainer.getPaddingTop(),
+                            mVirtualKeyboardContainer.getPaddingRight(),
+                            navBottom
+                    );
+                }
+            }
+        });
     }
 
     /** マウスホイールのスクロールイベント送信 (deltaY: +1=上, -1=下) */
@@ -633,6 +706,7 @@ public class LimboSDLActivity extends SDLActivity
     @Override
     public void onPictureInPictureModeChanged(boolean isInPictureInPictureMode, Configuration newConfig) {
         super.onPictureInPictureModeChanged(isInPictureInPictureMode, newConfig);
+        android.util.Log.i("LimboInsets", "onPictureInPictureModeChanged: isInPip=" + isInPictureInPictureMode);
         ActionBar ab = getSupportActionBar();
         if (isInPictureInPictureMode) {
             // PiPモード中は余計なUIを隠し、VM画面を全面表示
@@ -641,11 +715,20 @@ public class LimboSDLActivity extends SDLActivity
                 mVirtualKeyboardContainer.setVisibility(View.GONE);
             }
         } else {
-            // 通常モード復帰時
+            // 通常モード復帰時（PiPプレビューから最大化）
             if (ab != null && LimboSettingsManager.getAlwaysShowMenuToolbar(this)) {
                 ab.show();
             }
             updateLayout(getResources().getConfiguration().orientation);
+            applyKeyboardBottomPadding();
+            if (mVirtualKeyboardContainer != null) {
+                mVirtualKeyboardContainer.postDelayed(new Runnable() {
+                    @Override
+                    public void run() {
+                        applyKeyboardBottomPadding();
+                    }
+                }, 300);
+            }
         }
     }
 
@@ -819,6 +902,7 @@ public class LimboSDLActivity extends SDLActivity
         if (mVirtualKeyboardContainer != null) {
             if (orientation == Configuration.ORIENTATION_PORTRAIT) {
                 mVirtualKeyboardContainer.setVisibility(View.VISIBLE);
+                applyKeyboardBottomPadding();
             } else {
                 mVirtualKeyboardContainer.setVisibility(View.GONE);
             }
@@ -974,7 +1058,10 @@ public class LimboSDLActivity extends SDLActivity
     //XXX: We want to suspend only when app is calling onPause()
     @Override
     public void onWindowFocusChanged(boolean hasFocus) {
-
+        super.onWindowFocusChanged(hasFocus);
+        if (hasFocus) {
+            applyKeyboardBottomPadding();
+        }
     }
 
     public void sendRightClick() {
