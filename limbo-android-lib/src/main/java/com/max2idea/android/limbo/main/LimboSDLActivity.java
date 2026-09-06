@@ -489,6 +489,12 @@ public class LimboSDLActivity extends SDLActivity
     }
 
     protected void onCreate(Bundle savedInstanceState) {
+        // バックグラウンド時にSDLイベントループがブロックしないように設定
+        try {
+            android.system.Os.setenv("SDL_ANDROID_BLOCK_ON_PAUSE", "0", true);
+        } catch (Exception e) {
+            Log.w(TAG, "Failed to set SDL_ANDROID_BLOCK_ON_PAUSE", e);
+        }
         setupScreen();
         saveAudioState();
         super.onCreate(savedInstanceState);
@@ -790,16 +796,18 @@ public class LimboSDLActivity extends SDLActivity
 
     @Override
     protected boolean shouldKeepRunning() {
+        // PiPモード中のみ描画ステートをRESUMED維持（画面が存在するため）
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N && isInPictureInPictureMode()) {
             return true;
         }
-        return LimboSettingsManager.getEnableBackgroundExecution(this);
+        return false;
     }
 
     @Override
     protected void onPause() {
-        if (shouldKeepRunning() && MachineController.getInstance().isRunning()) {
-            // バックグラウンド実行またはPiP有効時: VMの実行を維持
+        if ((shouldKeepRunning() || LimboSettingsManager.getEnableBackgroundExecution(this))
+                && MachineController.getInstance().isRunning()) {
+            // バックグラウンド実行またはPiP有効時: VMの実行通知をRunningのまま維持
             notifyAction(MachineAction.UPDATE_NOTIFICATION, getString(R.string.VMRunning));
             super.onPause();
         } else {
@@ -861,11 +869,39 @@ public class LimboSDLActivity extends SDLActivity
         return layout;
     }
 
+    /**
+     * VM画面への再接続時またはSurface再生成時にQEMUの全画面再描画を確実に促す
+     */
+    public void scheduleScreenRefresh() {
+        if (MachineController.getInstance().isRunning()) {
+            machineRunning = true;
+        }
+        if (!machineRunning) {
+            return;
+        }
+        Handler handler = new Handler(Looper.getMainLooper());
+        // EGLサーフェスのバインド完了直後および安定後に複数回リフレッシュをトリガー
+        handler.postDelayed(new Runnable() {
+            @Override
+            public void run() {
+                setFullscreen();
+            }
+        }, 150);
+        handler.postDelayed(new Runnable() {
+            @Override
+            public void run() {
+                setFullscreen();
+            }
+        }, 500);
+    }
+
     protected void onResume() {
-        if (MachineController.getInstance().isRunning())
+        super.onResume();
+        if (MachineController.getInstance().isRunning()) {
             notifyAction(MachineAction.UPDATE_NOTIFICATION,
                     getString(R.string.VMRunning));
-        super.onResume();
+            scheduleScreenRefresh();
+        }
     }
 
     public void loadLibraries() {
@@ -1120,6 +1156,7 @@ public class LimboSDLActivity extends SDLActivity
         super.onWindowFocusChanged(hasFocus);
         if (hasFocus) {
             applyKeyboardBottomPadding();
+            scheduleScreenRefresh();
         }
     }
 
@@ -1339,6 +1376,9 @@ public class LimboSDLActivity extends SDLActivity
     }
 
     public synchronized void setFullscreen() {
+        if (!machineRunning && MachineController.getInstance().isRunning()) {
+            machineRunning = true;
+        }
         if(!machineRunning) {
             Log.w(TAG, "Machine not running not reset layout");
             return;

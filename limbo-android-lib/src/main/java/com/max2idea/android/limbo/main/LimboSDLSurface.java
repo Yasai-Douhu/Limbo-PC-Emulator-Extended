@@ -76,6 +76,11 @@ public class LimboSDLSurface extends SDLActivity.ExSDLSurface
         new Thread(new Runnable() {
             @Override
             public void run() {
+                try {
+                    // EGLサーフェスがネイティブ側で完全にバインドされるのを待つためわずかに待機
+                    Thread.sleep(100);
+                } catch (InterruptedException ignored) {
+                }
                 sdlActivity.setFullscreen();
                 // notify the controller that our display has changed
                 sdlActivity.notifyAction(MachineAction.DISPLAY_CHANGED,

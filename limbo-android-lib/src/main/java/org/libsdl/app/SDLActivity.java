@@ -1220,14 +1220,18 @@ class SDLSurface extends SurfaceView implements SurfaceHolder.Callback,
         holder.setType(SurfaceHolder.SURFACE_TYPE_GPU);
     }
 
-    // Called when we lose the surface
+    // サーフェスを失った時に呼び出される
     @Override
     public void surfaceDestroyed(SurfaceHolder holder) {
         Log.v("SDL", "surfaceDestroyed()");
 
-        // Transition to pause, if needed
+        // SurfaceViewの破棄時は描画先が存在しないため、確実にネイティブ描画を一時停止する
+        SDLActivity.nativePause();
+        if (SDLActivity.mSurface != null) {
+            SDLActivity.mSurface.handlePause();
+        }
+        SDLActivity.mCurrentNativeState = SDLActivity.NativeState.PAUSED;
         SDLActivity.mNextNativeState = SDLActivity.NativeState.PAUSED;
-        SDLActivity.handleNativeState();
 
         SDLActivity.mIsSurfaceReady = false;
         SDLActivity.onNativeSurfaceDestroyed();
