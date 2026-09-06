@@ -73,7 +73,7 @@
                 android:id="@+id/about_qemu_version"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="QEMU 5.1.0"
+                android:text="QEMU 9.2.0"
                 android:textSize="14sp" />
         </LinearLayout>
 

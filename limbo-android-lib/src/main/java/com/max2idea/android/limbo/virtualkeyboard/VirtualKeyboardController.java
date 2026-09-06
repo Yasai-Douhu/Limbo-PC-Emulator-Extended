@@ -424,30 +424,30 @@ public class VirtualKeyboardController {
         bindNormalKey(R.id.vk_key_pgdn, KeyEvent.KEYCODE_PAGE_DOWN);
 
         // テンキー
-        bindNormalKey(R.id.vk_num_0, KeyEvent.KEYCODE_NUMPAD_0);
-        bindNormalKey(R.id.vk_num_1, KeyEvent.KEYCODE_NUMPAD_1);
-        bindNormalKey(R.id.vk_num_2, KeyEvent.KEYCODE_NUMPAD_2);
-        bindNormalKey(R.id.vk_num_3, KeyEvent.KEYCODE_NUMPAD_3);
-        bindNormalKey(R.id.vk_num_4, KeyEvent.KEYCODE_NUMPAD_4);
-        bindNormalKey(R.id.vk_num_5, KeyEvent.KEYCODE_NUMPAD_5);
-        bindNormalKey(R.id.vk_num_6, KeyEvent.KEYCODE_NUMPAD_6);
+        bindNormalKey(R.id.vk_num_lock, KeyEvent.KEYCODE_NUM_LOCK);
+        bindNormalKey(R.id.vk_num_slash, KeyEvent.KEYCODE_NUMPAD_DIVIDE);
+        bindNormalKey(R.id.vk_num_star, KeyEvent.KEYCODE_NUMPAD_MULTIPLY);
+        bindNormalKey(R.id.vk_num_minus, KeyEvent.KEYCODE_NUMPAD_SUBTRACT);
         bindNormalKey(R.id.vk_num_7, KeyEvent.KEYCODE_NUMPAD_7);
         bindNormalKey(R.id.vk_num_8, KeyEvent.KEYCODE_NUMPAD_8);
         bindNormalKey(R.id.vk_num_9, KeyEvent.KEYCODE_NUMPAD_9);
-        bindNormalKey(R.id.vk_num_dot, KeyEvent.KEYCODE_NUMPAD_DOT);
         bindNormalKey(R.id.vk_num_plus, KeyEvent.KEYCODE_NUMPAD_ADD);
-        bindNormalKey(R.id.vk_num_minus, KeyEvent.KEYCODE_NUMPAD_SUBTRACT);
-        bindNormalKey(R.id.vk_num_star, KeyEvent.KEYCODE_NUMPAD_MULTIPLY);
-        bindNormalKey(R.id.vk_num_slash, KeyEvent.KEYCODE_NUMPAD_DIVIDE);
+        bindNormalKey(R.id.vk_num_4, KeyEvent.KEYCODE_NUMPAD_4);
+        bindNormalKey(R.id.vk_num_5, KeyEvent.KEYCODE_NUMPAD_5);
+        bindNormalKey(R.id.vk_num_6, KeyEvent.KEYCODE_NUMPAD_6);
+        bindNormalKey(R.id.vk_num_left_paren, KeyEvent.KEYCODE_NUMPAD_LEFT_PAREN);
+        bindNormalKey(R.id.vk_num_1, KeyEvent.KEYCODE_NUMPAD_1);
+        bindNormalKey(R.id.vk_num_2, KeyEvent.KEYCODE_NUMPAD_2);
+        bindNormalKey(R.id.vk_num_3, KeyEvent.KEYCODE_NUMPAD_3);
+        bindNormalKey(R.id.vk_num_right_paren, KeyEvent.KEYCODE_NUMPAD_RIGHT_PAREN);
+        bindNormalKey(R.id.vk_num_0, KeyEvent.KEYCODE_NUMPAD_0);
+        bindNormalKey(R.id.vk_num_dot, KeyEvent.KEYCODE_NUMPAD_DOT);
         bindNormalKey(R.id.vk_num_enter, KeyEvent.KEYCODE_NUMPAD_ENTER);
 
-        // 便利ショートカット
-        bindShortcutKey(R.id.vk_key_cad, new int[]{KeyEvent.KEYCODE_CTRL_LEFT, KeyEvent.KEYCODE_ALT_LEFT, KeyEvent.KEYCODE_FORWARD_DEL});
-        bindShortcutKey(R.id.vk_key_alt_tab, new int[]{KeyEvent.KEYCODE_ALT_LEFT, KeyEvent.KEYCODE_TAB});
-        bindShortcutKey(R.id.vk_key_win_r, new int[]{KeyEvent.KEYCODE_WINDOW, KeyEvent.KEYCODE_R});
-        bindShortcutKey(R.id.vk_key_win_d, new int[]{KeyEvent.KEYCODE_WINDOW, KeyEvent.KEYCODE_D});
-        bindShortcutKey(R.id.vk_key_ctrl_c, new int[]{KeyEvent.KEYCODE_CTRL_LEFT, KeyEvent.KEYCODE_C});
-        bindShortcutKey(R.id.vk_key_ctrl_v, new int[]{KeyEvent.KEYCODE_CTRL_LEFT, KeyEvent.KEYCODE_V});
+        // サブ画面用のナビゲーションキー
+        bindNormalKey(R.id.vk_key_sub_esc, KeyEvent.KEYCODE_ESCAPE);
+        bindNormalKey(R.id.vk_key_sub_tab, KeyEvent.KEYCODE_TAB);
+        bindNormalKey(R.id.vk_key_sub_del, KeyEvent.KEYCODE_FORWARD_DEL);
     }
 
     /**
@@ -483,30 +483,80 @@ public class VirtualKeyboardController {
 
     /**
      * 修飾キーのバインド（Shift, Ctrl, Alt, Win, CapsLock）
-     * タップでラッチ（ホールド）をトグル。ON時は背景を青く点灯。
+     * - タップ（短押し）: 通常のキーと同じく単発送信（KeyDown -> KeyUp）
+     * - 長押し（400ms以上）: ホールド状態（ラッチ）となり青く点灯。再度タップでホールド解除。
      */
+    @SuppressLint("ClickableViewAccessibility")
     private void bindModifierKey(int viewId, final int keyCode) {
         final Button v = rootView.findViewById(viewId);
         if (v == null) return;
 
-        v.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                boolean isCurrentlyLatched = latchedKeys.containsKey(keyCode) && Boolean.TRUE.equals(latchedKeys.get(keyCode));
-                boolean newLatched = !isCurrentlyLatched;
-                latchedKeys.put(keyCode, newLatched);
-
-                if (newLatched) {
+        v.setOnTouchListener(new View.OnTouchListener() {
+            private boolean isLongPress = false;
+            private boolean wasAlreadyLatched = false;
+            private final Runnable longPressRunnable = new Runnable() {
+                @Override
+                public void run() {
+                    isLongPress = true;
+                    latchedKeys.put(keyCode, true);
                     v.setBackgroundResource(R.drawable.vk_key_bg_latched);
-                    if (listener != null) {
-                        listener.onVirtualKeyDown(keyCode);
-                    }
-                } else {
-                    v.setBackgroundResource(R.drawable.vk_key_bg);
-                    if (listener != null) {
-                        listener.onVirtualKeyUp(keyCode);
-                    }
+                    try {
+                        v.performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS);
+                    } catch (Exception ignored) {}
                 }
+            };
+
+            @Override
+            public boolean onTouch(View view, MotionEvent event) {
+                switch (event.getAction()) {
+                    case MotionEvent.ACTION_DOWN:
+                        v.setPressed(true);
+                        isLongPress = false;
+                        wasAlreadyLatched = Boolean.TRUE.equals(latchedKeys.get(keyCode));
+
+                        if (wasAlreadyLatched) {
+                            // 既にホールド中の場合はUP時に解除
+                        } else {
+                            // まだホールドされていない場合はKeyDownを送信し、長押しタイマー起動
+                            if (listener != null) {
+                                listener.onVirtualKeyDown(keyCode);
+                            }
+                            handler.postDelayed(longPressRunnable, 400);
+                        }
+                        return true;
+
+                    case MotionEvent.ACTION_UP:
+                        v.setPressed(false);
+                        handler.removeCallbacks(longPressRunnable);
+
+                        if (wasAlreadyLatched) {
+                            // 既にホールド中だったキーをタップした場合はホールド解除
+                            latchedKeys.put(keyCode, false);
+                            v.setBackgroundResource(R.drawable.vk_key_bg);
+                            if (listener != null) {
+                                listener.onVirtualKeyUp(keyCode);
+                            }
+                        } else if (isLongPress) {
+                            // 長押しでホールド確定した場合: 指を離してもKeyDown状態を維持
+                        } else {
+                            // 短押し（タップ）: 通常キーと同じく単発KeyUpを送信して終了（ホールドしない）
+                            if (listener != null) {
+                                listener.onVirtualKeyUp(keyCode);
+                            }
+                        }
+                        return true;
+
+                    case MotionEvent.ACTION_CANCEL:
+                        v.setPressed(false);
+                        handler.removeCallbacks(longPressRunnable);
+                        if (!Boolean.TRUE.equals(latchedKeys.get(keyCode))) {
+                            if (listener != null) {
+                                listener.onVirtualKeyUp(keyCode);
+                            }
+                        }
+                        return true;
+                }
+                return false;
             }
         });
     }

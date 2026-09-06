@@ -217,15 +217,13 @@ public class LimboActivity extends AppCompatActivity
             public void run() {
                 if (MachineController.getInstance().isRunning() || status_changed == MachineStatus.Running) {
                     mStatus.setImageResource(R.drawable.on);
-                    if (mUI.getSelectedItemPosition() == 0) {
-                        // VNC
+                    boolean bgExec = LimboSettingsManager.getEnableBackgroundExecution(LimboActivity.this);
+                    if (mUI.getSelectedItemPosition() == 0 || bgExec) {
+                        // VNC または バックグラウンド実行有効時
                         mStatusText.setText(R.string.Running);
-                        //XXX: we block the user from changing the drives
-                        // from this activitybecause sdl is suspended and the thread will block
-                        // so they have to change it from within the SDL Activity
                         enableRemovableDiskValues(true);
                     } else {
-                        // SDL is always suspend in the background
+                        // バックグラウンド実行無効時はサスペンド
                         mStatusText.setText(R.string.Suspended);
                         enableRemovableDiskValues(false);
                     }
@@ -1702,7 +1700,7 @@ public class LimboActivity extends AppCompatActivity
             mAboutLimboVersion.setText("7.0.0");
         }
         if (mAboutQemuVersion != null) {
-            mAboutQemuVersion.setText("QEMU 5.1.0");
+            mAboutQemuVersion.setText("QEMU 9.2.0");
         }
         if (mAboutTargetArch != null) {
             mAboutTargetArch.setText(LimboApplication.arch != null ? LimboApplication.arch.name() : "x86_64");

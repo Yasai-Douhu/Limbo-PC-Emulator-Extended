@@ -41,6 +41,11 @@
         android:title="@string/toggle_virtual_keyboard" />
 
     <item
+        android:id="@+id/itemAdjustKeyboardPadding"
+        android:icon="@drawable/keyboard"
+        android:title="@string/adjust_keyboard_padding" />
+
+    <item
         android:id="@+id/itemPipMode"
         android:icon="@android:drawable/ic_menu_slideshow"
         android:title="@string/pip_mode" />

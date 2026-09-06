@@ -239,7 +239,7 @@
             </LinearLayout>
         </LinearLayout>
 
-        <!-- ==================== サブキーボード面 (Fn切り替え時: ファンクション、ナビゲーション、テンキー、ショートカット) ==================== -->
+        <!-- ==================== サブキーボード面 (Fn切り替え時: ファンクション、ナビゲーション、本格テンキー) ==================== -->
         <LinearLayout
             android:id="@+id/vk_layout_sub"
             android:layout_width="match_parent"
@@ -247,77 +247,79 @@
             android:orientation="vertical"
             android:visibility="gone">
 
-            <!-- 行1: F1 - F12 -->
+            <!-- 行1: F1-F6 (左側) & Num, /, *, - (右側テンキー) -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="32dp"
                 android:orientation="horizontal">
 
-                <Button android:id="@+id/vk_key_f1" style="@style/VirtualKeyStyle" android:layout_weight="1" android:text="F1" />
-                <Button android:id="@+id/vk_key_f2" style="@style/VirtualKeyStyle" android:layout_weight="1" android:text="F2" />
-                <Button android:id="@+id/vk_key_f3" style="@style/VirtualKeyStyle" android:layout_weight="1" android:text="F3" />
-                <Button android:id="@+id/vk_key_f4" style="@style/VirtualKeyStyle" android:layout_weight="1" android:text="F4" />
-                <Button android:id="@+id/vk_key_f5" style="@style/VirtualKeyStyle" android:layout_weight="1" android:text="F5" />
-                <Button android:id="@+id/vk_key_f6" style="@style/VirtualKeyStyle" android:layout_weight="1" android:text="F6" />
-                <Button android:id="@+id/vk_key_f7" style="@style/VirtualKeyStyle" android:layout_weight="1" android:text="F7" />
-                <Button android:id="@+id/vk_key_f8" style="@style/VirtualKeyStyle" android:layout_weight="1" android:text="F8" />
-                <Button android:id="@+id/vk_key_f9" style="@style/VirtualKeyStyle" android:layout_weight="1" android:text="F9" />
-                <Button android:id="@+id/vk_key_f10" style="@style/VirtualKeyStyle" android:layout_weight="1" android:text="F10" />
-                <Button android:id="@+id/vk_key_f11" style="@style/VirtualKeyStyle" android:layout_weight="1" android:text="F11" />
-                <Button android:id="@+id/vk_key_f12" style="@style/VirtualKeyStyle" android:layout_weight="1" android:text="F12" />
+                <Button android:id="@+id/vk_key_f1" style="@style/VirtualKeyStyle" android:layout_weight="1.0" android:text="F1" />
+                <Button android:id="@+id/vk_key_f2" style="@style/VirtualKeyStyle" android:layout_weight="1.0" android:text="F2" />
+                <Button android:id="@+id/vk_key_f3" style="@style/VirtualKeyStyle" android:layout_weight="1.0" android:text="F3" />
+                <Button android:id="@+id/vk_key_f4" style="@style/VirtualKeyStyle" android:layout_weight="1.0" android:text="F4" />
+                <Button android:id="@+id/vk_key_f5" style="@style/VirtualKeyStyle" android:layout_weight="1.0" android:text="F5" />
+                <Button android:id="@+id/vk_key_f6" style="@style/VirtualKeyStyle" android:layout_weight="1.0" android:text="F6" />
+
+                <Button android:id="@+id/vk_num_lock" style="@style/VirtualKeyStyle" android:layout_weight="1.0" android:text="Num" />
+                <Button android:id="@+id/vk_num_slash" style="@style/VirtualKeyStyle" android:layout_weight="1.0" android:text="/" />
+                <Button android:id="@+id/vk_num_star" style="@style/VirtualKeyStyle" android:layout_weight="1.0" android:text="*" />
+                <Button android:id="@+id/vk_num_minus" style="@style/VirtualKeyStyle" android:layout_weight="1.0" android:text="-" />
             </LinearLayout>
 
-            <!-- 行2: 特殊キー & ナビゲーション (PrtSc, ScLk, Pause, Ins, Home, End, PgUp, PgDn) -->
+            <!-- 行2: F7-F12 (左側) & 7, 8, 9, + (右側テンキー) -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="32dp"
                 android:orientation="horizontal">
 
-                <Button android:id="@+id/vk_key_prtsc" style="@style/VirtualKeyStyle" android:layout_weight="1" android:text="PrtSc" />
-                <Button android:id="@+id/vk_key_sclk" style="@style/VirtualKeyStyle" android:layout_weight="1" android:text="ScLk" />
-                <Button android:id="@+id/vk_key_pause" style="@style/VirtualKeyStyle" android:layout_weight="1" android:text="Pause" />
-                <Button android:id="@+id/vk_key_insert" style="@style/VirtualKeyStyle" android:layout_weight="1" android:text="Ins" />
-                <Button android:id="@+id/vk_key_home" style="@style/VirtualKeyStyle" android:layout_weight="1" android:text="Home" />
-                <Button android:id="@+id/vk_key_end" style="@style/VirtualKeyStyle" android:layout_weight="1" android:text="End" />
-                <Button android:id="@+id/vk_key_pgup" style="@style/VirtualKeyStyle" android:layout_weight="1" android:text="PgUp" />
-                <Button android:id="@+id/vk_key_pgdn" style="@style/VirtualKeyStyle" android:layout_weight="1" android:text="PgDn" />
+                <Button android:id="@+id/vk_key_f7" style="@style/VirtualKeyStyle" android:layout_weight="1.0" android:text="F7" />
+                <Button android:id="@+id/vk_key_f8" style="@style/VirtualKeyStyle" android:layout_weight="1.0" android:text="F8" />
+                <Button android:id="@+id/vk_key_f9" style="@style/VirtualKeyStyle" android:layout_weight="1.0" android:text="F9" />
+                <Button android:id="@+id/vk_key_f10" style="@style/VirtualKeyStyle" android:layout_weight="1.0" android:text="F10" />
+                <Button android:id="@+id/vk_key_f11" style="@style/VirtualKeyStyle" android:layout_weight="1.0" android:text="F11" />
+                <Button android:id="@+id/vk_key_f12" style="@style/VirtualKeyStyle" android:layout_weight="1.0" android:text="F12" />
+
+                <Button android:id="@+id/vk_num_7" style="@style/VirtualKeyStyle" android:layout_weight="1.0" android:text="7" />
+                <Button android:id="@+id/vk_num_8" style="@style/VirtualKeyStyle" android:layout_weight="1.0" android:text="8" />
+                <Button android:id="@+id/vk_num_9" style="@style/VirtualKeyStyle" android:layout_weight="1.0" android:text="9" />
+                <Button android:id="@+id/vk_num_plus" style="@style/VirtualKeyStyle" android:layout_weight="1.0" android:text="+" />
             </LinearLayout>
 
-            <!-- 行3: 便利ショートカット一発押し & テンキー上段 (Ctrl+Alt+Del, Alt+Tab, Win+R, Win+D, 7, 8, 9, /) -->
+            <!-- 行3: PrtSc, ScLk, Pause, Ins (左側) & 4, 5, 6, ( (右側テンキー) -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="32dp"
                 android:orientation="horizontal">
 
-                <Button android:id="@+id/vk_key_cad" style="@style/VirtualKeyStyle" android:layout_weight="1.6" android:text="C+A+Del" android:textColor="#FF8A80" />
-                <Button android:id="@+id/vk_key_alt_tab" style="@style/VirtualKeyStyle" android:layout_weight="1.4" android:text="Alt+Tab" />
-                <Button android:id="@+id/vk_key_win_r" style="@style/VirtualKeyStyle" android:layout_weight="1.2" android:text="Win+R" />
-                <Button android:id="@+id/vk_key_win_d" style="@style/VirtualKeyStyle" android:layout_weight="1.2" android:text="Win+D" />
-                <Button android:id="@+id/vk_num_7" style="@style/VirtualKeyStyle" android:layout_weight="1" android:text="7" />
-                <Button android:id="@+id/vk_num_8" style="@style/VirtualKeyStyle" android:layout_weight="1" android:text="8" />
-                <Button android:id="@+id/vk_num_9" style="@style/VirtualKeyStyle" android:layout_weight="1" android:text="9" />
-                <Button android:id="@+id/vk_num_slash" style="@style/VirtualKeyStyle" android:layout_weight="1" android:text="/" />
+                <Button android:id="@+id/vk_key_prtsc" style="@style/VirtualKeyStyle" android:layout_weight="1.5" android:text="PrtSc" />
+                <Button android:id="@+id/vk_key_sclk" style="@style/VirtualKeyStyle" android:layout_weight="1.5" android:text="ScLk" />
+                <Button android:id="@+id/vk_key_pause" style="@style/VirtualKeyStyle" android:layout_weight="1.5" android:text="Pause" />
+                <Button android:id="@+id/vk_key_insert" style="@style/VirtualKeyStyle" android:layout_weight="1.5" android:text="Ins" />
+
+                <Button android:id="@+id/vk_num_4" style="@style/VirtualKeyStyle" android:layout_weight="1.0" android:text="4" />
+                <Button android:id="@+id/vk_num_5" style="@style/VirtualKeyStyle" android:layout_weight="1.0" android:text="5" />
+                <Button android:id="@+id/vk_num_6" style="@style/VirtualKeyStyle" android:layout_weight="1.0" android:text="6" />
+                <Button android:id="@+id/vk_num_left_paren" style="@style/VirtualKeyStyle" android:layout_weight="1.0" android:text="(" />
             </LinearLayout>
 
-            <!-- 行4: テンキー中段 & 記号 (4, 5, 6, *, 1, 2, 3, -) -->
+            <!-- 行4: Home, End, PgUp, PgDn (左側) & 1, 2, 3, ) (右側テンキー) -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="32dp"
                 android:orientation="horizontal">
 
-                <Button android:id="@+id/vk_key_ctrl_c" style="@style/VirtualKeyStyle" android:layout_weight="1.4" android:text="Ctrl+C" />
-                <Button android:id="@+id/vk_key_ctrl_v" style="@style/VirtualKeyStyle" android:layout_weight="1.4" android:text="Ctrl+V" />
-                <Button android:id="@+id/vk_num_4" style="@style/VirtualKeyStyle" android:layout_weight="1" android:text="4" />
-                <Button android:id="@+id/vk_num_5" style="@style/VirtualKeyStyle" android:layout_weight="1" android:text="5" />
-                <Button android:id="@+id/vk_num_6" style="@style/VirtualKeyStyle" android:layout_weight="1" android:text="6" />
-                <Button android:id="@+id/vk_num_star" style="@style/VirtualKeyStyle" android:layout_weight="1" android:text="*" />
-                <Button android:id="@+id/vk_num_1" style="@style/VirtualKeyStyle" android:layout_weight="1" android:text="1" />
-                <Button android:id="@+id/vk_num_2" style="@style/VirtualKeyStyle" android:layout_weight="1" android:text="2" />
-                <Button android:id="@+id/vk_num_3" style="@style/VirtualKeyStyle" android:layout_weight="1" android:text="3" />
-                <Button android:id="@+id/vk_num_minus" style="@style/VirtualKeyStyle" android:layout_weight="1" android:text="-" />
+                <Button android:id="@+id/vk_key_home" style="@style/VirtualKeyStyle" android:layout_weight="1.5" android:text="Home" />
+                <Button android:id="@+id/vk_key_end" style="@style/VirtualKeyStyle" android:layout_weight="1.5" android:text="End" />
+                <Button android:id="@+id/vk_key_pgup" style="@style/VirtualKeyStyle" android:layout_weight="1.5" android:text="PgUp" />
+                <Button android:id="@+id/vk_key_pgdn" style="@style/VirtualKeyStyle" android:layout_weight="1.5" android:text="PgDn" />
+
+                <Button android:id="@+id/vk_num_1" style="@style/VirtualKeyStyle" android:layout_weight="1.0" android:text="1" />
+                <Button android:id="@+id/vk_num_2" style="@style/VirtualKeyStyle" android:layout_weight="1.0" android:text="2" />
+                <Button android:id="@+id/vk_num_3" style="@style/VirtualKeyStyle" android:layout_weight="1.0" android:text="3" />
+                <Button android:id="@+id/vk_num_right_paren" style="@style/VirtualKeyStyle" android:layout_weight="1.0" android:text=")" />
             </LinearLayout>
 
-            <!-- 行5: テンキー下段 & Fn戻る (Fn戻る, 0, ., +, NumEnter) -->
+            <!-- 行5: Fn戻る, Esc, Tab, Del (左側) & 0, ., Enter (右側テンキー) -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="34dp"
@@ -326,15 +328,18 @@
                 <Button
                     android:id="@+id/vk_key_fn_back"
                     style="@style/VirtualKeyStyle"
-                    android:layout_weight="2.2"
+                    android:layout_weight="2.4"
                     android:text="◀ QWERTY (Fn)"
                     android:textColor="#80D8FF"
                     android:textStyle="bold" />
 
-                <Button android:id="@+id/vk_num_0" style="@style/VirtualKeyStyle" android:layout_weight="1.8" android:text="0" />
-                <Button android:id="@+id/vk_num_dot" style="@style/VirtualKeyStyle" android:layout_weight="1" android:text="." />
-                <Button android:id="@+id/vk_num_plus" style="@style/VirtualKeyStyle" android:layout_weight="1" android:text="+" />
-                <Button android:id="@+id/vk_num_enter" style="@style/VirtualKeyStyle" android:layout_weight="1.8" android:text="Enter" />
+                <Button android:id="@+id/vk_key_sub_esc" style="@style/VirtualKeyStyle" android:layout_weight="1.2" android:text="Esc" />
+                <Button android:id="@+id/vk_key_sub_tab" style="@style/VirtualKeyStyle" android:layout_weight="1.2" android:text="Tab" />
+                <Button android:id="@+id/vk_key_sub_del" style="@style/VirtualKeyStyle" android:layout_weight="1.2" android:text="Del" />
+
+                <Button android:id="@+id/vk_num_0" style="@style/VirtualKeyStyle" android:layout_weight="2.0" android:text="0" />
+                <Button android:id="@+id/vk_num_dot" style="@style/VirtualKeyStyle" android:layout_weight="1.0" android:text="." />
+                <Button android:id="@+id/vk_num_enter" style="@style/VirtualKeyStyle" android:layout_weight="1.0" android:text="Enter" />
             </LinearLayout>
         </LinearLayout>
     </LinearLayout>

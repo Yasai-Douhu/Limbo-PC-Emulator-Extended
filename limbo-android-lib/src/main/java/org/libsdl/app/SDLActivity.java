@@ -237,18 +237,32 @@ public class SDLActivity
         }
     }
 
+    // PiPまたはバックグラウンド実行を維持すべきか判定 (派生クラスでオーバーライド可能)
+    protected boolean shouldKeepRunning() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N && isInPictureInPictureMode()) {
+            return true;
+        }
+        return false;
+    }
+
     // Events
     @Override
     protected void onPause() {
         Log.v(TAG, "onPause()");
         super.onPause();
-        mNextNativeState = NativeState.PAUSED;
         mIsResumedCalled = false;
 
         if (SDLActivity.mBrokenLibraries) {
             return;
         }
 
+        if (shouldKeepRunning()) {
+            Log.i(TAG, "onPause: keeping RESUMED state for PiP / Background execution");
+            mNextNativeState = NativeState.RESUMED;
+            return;
+        }
+
+        mNextNativeState = NativeState.PAUSED;
         SDLActivity.handleNativeState();
     }
 
@@ -280,6 +294,10 @@ public class SDLActivity
         if (hasFocus) {
             mNextNativeState = NativeState.RESUMED;
         } else {
+            if (shouldKeepRunning()) {
+                Log.i(TAG, "Window lost focus, but keeping RESUMED state (PiP / Background)");
+                return;
+            }
             mNextNativeState = NativeState.PAUSED;
         }
 
@@ -384,6 +402,10 @@ public class SDLActivity
 
         // Try a transition to paused state
         if (mNextNativeState == NativeState.PAUSED) {
+            if (mSingleton != null && mSingleton.shouldKeepRunning()) {
+                Log.i(TAG, "Skipping NativeState.PAUSED transition because shouldKeepRunning() is true");
+                return;
+            }
             nativePause();
             if (mSurface != null)
                 mSurface.handlePause();
@@ -393,7 +415,8 @@ public class SDLActivity
 
         // Try a transition to resumed state
         if (mNextNativeState == NativeState.RESUMED) {
-            if (mIsSurfaceReady && mHasFocus && mIsResumedCalled) {
+            boolean allowWithoutFocus = (mSingleton != null && mSingleton.shouldKeepRunning());
+            if (mIsSurfaceReady && (mHasFocus || allowWithoutFocus) && (mIsResumedCalled || allowWithoutFocus)) {
                 if (mSDLThread == null) {
                     // This is the entry point to the C app.
                     // Start up the C app thread and enable sensor input for the first time

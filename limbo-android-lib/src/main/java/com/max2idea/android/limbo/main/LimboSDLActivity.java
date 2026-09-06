@@ -255,6 +255,8 @@ public class LimboSDLActivity extends SDLActivity
             Logger.viewLimboLog(this);
         } else if (item.getItemId() == R.id.itemToggleVirtualKeyboard) {
             toggleVirtualKeyboard();
+        } else if (item.getItemId() == R.id.itemAdjustKeyboardPadding) {
+            toggleKeyboardBottomPadding();
         } else if (item.getItemId() == R.id.itemPipMode) {
             enterPipMode();
         } else if (item.getItemId() == R.id.itemSendText) {
@@ -635,12 +637,14 @@ public class LimboSDLActivity extends SDLActivity
         return 0;
     }
 
+    private boolean mIsKeyboardPaddingApplied = true;
+
     /**
      * 仮想キーボードの下部にナビゲーションバー分のパディングを適用してめり込みを防止
      */
     public void applyKeyboardBottomPadding() {
         if (mVirtualKeyboardContainer == null) return;
-        final int navBottom = getNavigationBarHeight();
+        final int navBottom = mIsKeyboardPaddingApplied ? getNavigationBarHeight() : 0;
         mVirtualKeyboardContainer.post(new Runnable() {
             @Override
             public void run() {
@@ -654,6 +658,21 @@ public class LimboSDLActivity extends SDLActivity
                 }
             }
         });
+    }
+
+    /**
+     * 仮想キーボードの下部パディングを手動で切替（リセット: 0px ⇔ 再適用: ナビバー高さ）
+     */
+    public void toggleKeyboardBottomPadding() {
+        if (mVirtualKeyboardContainer == null) return;
+        mIsKeyboardPaddingApplied = !mIsKeyboardPaddingApplied;
+        applyKeyboardBottomPadding();
+        if (mIsKeyboardPaddingApplied) {
+            int h = getNavigationBarHeight();
+            ToastUtils.toastShort(this, getString(R.string.keyboard_padding_applied, h));
+        } else {
+            ToastUtils.toastShort(this, getString(R.string.keyboard_padding_reset));
+        }
     }
 
     /** マウスホイールのスクロールイベント送信 (deltaY: +1=上, -1=下) */
@@ -733,16 +752,19 @@ public class LimboSDLActivity extends SDLActivity
     }
 
     @Override
+    protected boolean shouldKeepRunning() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N && isInPictureInPictureMode()) {
+            return true;
+        }
+        return LimboSettingsManager.getEnableBackgroundExecution(this);
+    }
+
+    @Override
     protected void onPause() {
-        boolean bgExec = LimboSettingsManager.getEnableBackgroundExecution(this);
-        if (bgExec && MachineController.getInstance().isRunning()) {
-            // バックグラウンド実行有効時: VMの実行を維持
+        if (shouldKeepRunning() && MachineController.getInstance().isRunning()) {
+            // バックグラウンド実行またはPiP有効時: VMの実行を維持
             notifyAction(MachineAction.UPDATE_NOTIFICATION, getString(R.string.VMRunning));
-            // super.onPause() は呼び出しつつ、SDLのPAUSED状態遷移を復元
             super.onPause();
-            SDLActivity.mNextNativeState = NativeState.RESUMED;
-            SDLActivity.mIsResumedCalled = true;
-            SDLActivity.handleNativeState();
         } else {
             if (MachineController.getInstance().isRunning()) {
                 notifyAction(MachineAction.UPDATE_NOTIFICATION, getString(R.string.VMSuspended));
