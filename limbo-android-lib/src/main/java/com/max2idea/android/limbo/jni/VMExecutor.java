@@ -568,7 +568,7 @@ private String getQemuLibrary() {
                 String param = "index=" + index;
                 param += ",if=";
                 param += hdInterface;
-                param += ",media=disk";
+                param += ",media=disk,file.locking=off";
                 if (!imagePath.equals("")) {
                     param += ",file=" + imagePath;
                 }
@@ -614,7 +614,10 @@ private String getQemuLibrary() {
                 String param = "index=2";
                 param += ",if=";
                 param += getMachine().getCDInterface();
-                param += ",media=cdrom";
+                // CD-ROMドライブはリードオンリーメディアのため、read-only=on を明示的に指定
+                // （これがないと QEMU が書き込み権限を要求し、.iso などのリードオンリーFDオープン時にクラッシュする）
+                // また Android SAF (DocumentsProvider) 上では fcntl/OFD ロックが失敗するため、file.locking=off を指定
+                param += ",media=cdrom,read-only=on,file.locking=off";
                 if (!cdImagePath.equals("")) {
                     param += ",file=" + cdImagePath;
                 }
@@ -629,7 +632,7 @@ private String getQemuLibrary() {
                 paramsList.add(fdaImagePath);
             } else {
                 paramsList.add("-drive"); //empty
-                String param = "index=0,if=floppy";
+                String param = "index=0,if=floppy,file.locking=off";
                 if (!fdaImagePath.equals("")) {
                     param += ",file=" + fdaImagePath;
                 }
@@ -644,7 +647,7 @@ private String getQemuLibrary() {
                 paramsList.add(fdbImagePath);
             } else {
                 paramsList.add("-drive"); //empty
-                String param = "index=1,if=floppy";
+                String param = "index=1,if=floppy,file.locking=off";
                 if (!fdbImagePath.equals("")) {
                     param += ",file=" + fdbImagePath;
                 }
@@ -661,7 +664,7 @@ private String getQemuLibrary() {
                 paramsList.add("-device");
                 paramsList.add("sd-card,drive=sd0,bus=sd-bus");
                 paramsList.add("-drive");
-                String param = "if=none,id=sd0";
+                String param = "if=none,id=sd0,file.locking=off";
                 if (!sdImagePath.equals("")) {
                     param += ",file=" + sdImagePath;
                 }

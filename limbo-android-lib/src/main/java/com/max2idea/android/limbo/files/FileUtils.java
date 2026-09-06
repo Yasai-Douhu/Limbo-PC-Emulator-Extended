@@ -208,9 +208,20 @@ public class FileUtils {
                 try {
                     Uri uri = Uri.parse(npath);
                     String mode = "rw";
-                    if (path.toLowerCase().endsWith(".iso"))
+                    String pathLower = path.toLowerCase();
+                    if (pathLower.endsWith(".iso") || pathLower.contains(".iso%") || pathLower.contains(".iso/"))
                         mode = "r";
-                    ParcelFileDescriptor pfd = LimboApplication.getInstance().getContentResolver().openFileDescriptor(uri, mode);
+                    ParcelFileDescriptor pfd = null;
+                    try {
+                        pfd = LimboApplication.getInstance().getContentResolver().openFileDescriptor(uri, mode);
+                    } catch (Exception ex) {
+                        // rw でのオープンに失敗した場合（書き込み権限がないストレージ等）、読み取り専用 "r" で再試行
+                        if ("rw".equals(mode)) {
+                            pfd = LimboApplication.getInstance().getContentResolver().openFileDescriptor(uri, "r");
+                        } else {
+                            throw ex;
+                        }
+                    }
                     fd = pfd.getFd();
                     fds.put(fd, new FileInfo(path, npath, pfd));
                     Log.d(TAG, "Opening Content Uri: " + npath + ", FD: " + fd);
@@ -224,12 +235,23 @@ public class FileUtils {
             } else {
                 try {
                     int mode = ParcelFileDescriptor.MODE_READ_WRITE;
-                    if (path.toLowerCase().endsWith(".iso"))
+                    String pathLower = path.toLowerCase();
+                    if (pathLower.endsWith(".iso") || pathLower.contains(".iso%") || pathLower.contains(".iso/"))
                         mode = ParcelFileDescriptor.MODE_READ_ONLY;
                     File file = new File(path);
-                    if (!file.exists())
-                        file.createNewFile();
-                    ParcelFileDescriptor pfd = ParcelFileDescriptor.open(file, mode);
+                    ParcelFileDescriptor pfd = null;
+                    try {
+                        if (!file.exists())
+                            file.createNewFile();
+                        pfd = ParcelFileDescriptor.open(file, mode);
+                    } catch (Exception ex) {
+                        // MODE_READ_WRITE でのオープンに失敗した場合、MODE_READ_ONLY で再試行
+                        if (mode == ParcelFileDescriptor.MODE_READ_WRITE && file.exists()) {
+                            pfd = ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY);
+                        } else {
+                            throw ex;
+                        }
+                    }
                     fd = pfd.getFd();
                     fds.put(fd, new FileInfo(path, path, pfd));
                     Log.d(TAG, "Opening File: " + path + ", FD: " + fd);
