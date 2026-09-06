@@ -110,9 +110,11 @@
     <string name="isos_and_tools_descr">Do you want to view a list of Compatible OSes and Download Links?</string>
     <string name="customOperatingSystem">Custom Operating System - use your own ISO and HDD images</string>
     <string name="toggle_virtual_keyboard">Toggle Virtual Keyboard</string>
-    <string name="adjust_keyboard_padding">Reset Keyboard Position (Padding)</string>
-    <string name="keyboard_padding_reset">Keyboard position reset (Padding: 0px)</string>
-    <string name="keyboard_padding_applied">Keyboard adjusted to Navigation Bar (Padding: %d px)</string>
+    <string name="adjust_keyboard_padding">Adjust Keyboard Position</string>
+    <string name="keyboard_padding_step1">Keyboard lifted up (+40dp, %d px)</string>
+    <string name="keyboard_padding_step2">Keyboard lifted higher (+80dp, %d px)</string>
+    <string name="keyboard_padding_reset">Keyboard position set to bottom (0px)</string>
+    <string name="keyboard_padding_standard">Keyboard position restored to standard (%d px)</string>
     <string name="pip_mode">Picture in Picture</string>
     <string name="enable_background_execution_title">Background Execution</string>
     <string name="enable_background_execution_summary">Keep VM running when app is in background or PiP</string>

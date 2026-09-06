@@ -637,14 +637,39 @@ public class LimboSDLActivity extends SDLActivity
         return 0;
     }
 
-    private boolean mIsKeyboardPaddingApplied = true;
+    // キーボード下部パディングのステップ:
+    // 0: 標準 (ナビバー直上: navHeight)
+    // 1: 上へ持ち上げ (+40dp: navHeight + 40dp)
+    // 2: さらに上へ (+80dp: navHeight + 80dp)
+    // 3: 下端リセット (0px)
+    private int mKeyboardPaddingStep = 0;
+
+    private int dpToPx(int dp) {
+        return Math.round(dp * getResources().getDisplayMetrics().density);
+    }
 
     /**
-     * 仮想キーボードの下部にナビゲーションバー分のパディングを適用してめり込みを防止
+     * 仮想キーボードの下部にパディングを適用してめり込みを防止・位置調整
      */
     public void applyKeyboardBottomPadding() {
         if (mVirtualKeyboardContainer == null) return;
-        final int navBottom = mIsKeyboardPaddingApplied ? getNavigationBarHeight() : 0;
+        final int navBottom;
+        int navHeight = getNavigationBarHeight();
+        switch (mKeyboardPaddingStep) {
+            case 1:
+                navBottom = navHeight + dpToPx(40);
+                break;
+            case 2:
+                navBottom = navHeight + dpToPx(80);
+                break;
+            case 3:
+                navBottom = 0;
+                break;
+            case 0:
+            default:
+                navBottom = navHeight;
+                break;
+        }
         mVirtualKeyboardContainer.post(new Runnable() {
             @Override
             public void run() {
@@ -661,17 +686,29 @@ public class LimboSDLActivity extends SDLActivity
     }
 
     /**
-     * 仮想キーボードの下部パディングを手動で切替（リセット: 0px ⇔ 再適用: ナビバー高さ）
+     * 仮想キーボードの下部パディングを手動で切替（標準 ➜ +40dp上へ ➜ +80dpさらに上へ ➜ 下端0px ➜ 標準）
      */
     public void toggleKeyboardBottomPadding() {
         if (mVirtualKeyboardContainer == null) return;
-        mIsKeyboardPaddingApplied = !mIsKeyboardPaddingApplied;
+        mKeyboardPaddingStep = (mKeyboardPaddingStep + 1) % 4;
         applyKeyboardBottomPadding();
-        if (mIsKeyboardPaddingApplied) {
-            int h = getNavigationBarHeight();
-            ToastUtils.toastShort(this, getString(R.string.keyboard_padding_applied, h));
-        } else {
-            ToastUtils.toastShort(this, getString(R.string.keyboard_padding_reset));
+        int navHeight = getNavigationBarHeight();
+        switch (mKeyboardPaddingStep) {
+            case 1:
+                int p1 = navHeight + dpToPx(40);
+                ToastUtils.toastShort(this, getString(R.string.keyboard_padding_step1, p1));
+                break;
+            case 2:
+                int p2 = navHeight + dpToPx(80);
+                ToastUtils.toastShort(this, getString(R.string.keyboard_padding_step2, p2));
+                break;
+            case 3:
+                ToastUtils.toastShort(this, getString(R.string.keyboard_padding_reset));
+                break;
+            case 0:
+            default:
+                ToastUtils.toastShort(this, getString(R.string.keyboard_padding_standard, navHeight));
+                break;
         }
     }
 

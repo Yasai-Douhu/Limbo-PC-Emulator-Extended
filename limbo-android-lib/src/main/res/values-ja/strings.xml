@@ -100,8 +100,10 @@
     <string name="volume">音量</string>
     <string name="toggle_virtual_keyboard">仮想キーボード切替</string>
     <string name="adjust_keyboard_padding">キーボード位置調整（パディング）</string>
-    <string name="keyboard_padding_reset">キーボード位置をリセットしました (パディング: 0px)</string>
-    <string name="keyboard_padding_applied">ナビゲーションバーに合わせてパディングを適用しました (%d px)</string>
+    <string name="keyboard_padding_step1">キーボードを上に持ち上げました (+40dp: %d px)</string>
+    <string name="keyboard_padding_step2">キーボードをさらに上に持ち上げました (+80dp: %d px)</string>
+    <string name="keyboard_padding_reset">キーボード位置を下端に設定しました (パディング: 0px)</string>
+    <string name="keyboard_padding_standard">キーボード位置を標準に戻しました (パディング: %d px)</string>
     <string name="pip_mode">PiP (小窓) モード</string>
 
 </resources>
