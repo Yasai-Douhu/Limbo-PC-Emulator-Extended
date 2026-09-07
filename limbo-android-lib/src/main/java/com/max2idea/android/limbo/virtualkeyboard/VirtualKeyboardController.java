@@ -474,7 +474,8 @@ public class VirtualKeyboardController {
 
         // 行5
         bindModifierKey(R.id.vk_key_ctrl, KeyEvent.KEYCODE_CTRL_LEFT);
-        bindModifierKey(R.id.vk_key_win, KeyEvent.KEYCODE_WINDOW);
+        // Windowsキー（AndroidのKEYCODE_META_LEFTがSDLのSDL_SCANCODE_LGUIにマップされる）
+        bindModifierKey(R.id.vk_key_win, KeyEvent.KEYCODE_META_LEFT);
         bindModifierKey(R.id.vk_key_alt, KeyEvent.KEYCODE_ALT_LEFT);
         bindNormalKey(R.id.vk_key_space, KeyEvent.KEYCODE_SPACE);
         bindModifierKey(R.id.vk_key_alt_gr, KeyEvent.KEYCODE_ALT_RIGHT);
