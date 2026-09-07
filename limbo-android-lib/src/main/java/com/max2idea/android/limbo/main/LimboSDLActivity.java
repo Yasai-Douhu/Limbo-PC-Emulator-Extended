@@ -591,12 +591,14 @@ public class LimboSDLActivity extends SDLActivity
 
             @Override
             public void onVirtualMouseDown(int button) {
+                Log.d("LimboMouse", "[Act] onVirtualMouseDown: button=" + button);
                 // トラックパッドモードの状態を維持したまま、現在のカーソル位置でボタン押下 (遅延なし: 0)
                 sendMouseEvent(button, MotionEvent.ACTION_DOWN, MotionEvent.TOOL_TYPE_FINGER, 0, 0, 0);
             }
 
             @Override
             public void onVirtualMouseUp(int button) {
+                Log.d("LimboMouse", "[Act] onVirtualMouseUp: button=" + button);
                 // トラックパッドモードの状態を維持したまま、現在のカーソル位置でボタン解放 (遅延なし: 0)
                 sendMouseEvent(button, MotionEvent.ACTION_UP, MotionEvent.TOOL_TYPE_FINGER, 0, 0, 0);
             }
@@ -626,7 +628,8 @@ public class LimboSDLActivity extends SDLActivity
      * 仮想キーボードのマウスボタンがホールド中（L-HOLDまたはR-HOLD）かどうかを取得
      */
     public boolean isMouseLatched() {
-        return mVirtualKeyboardController != null && mVirtualKeyboardController.isMouseLatched();
+        boolean latched = mVirtualKeyboardController != null && mVirtualKeyboardController.isMouseLatched();
+        return latched;
     }
 
     /**
@@ -1330,9 +1333,11 @@ public class LimboSDLActivity extends SDLActivity
                     nx = mouseState.taps.get(0).x;
                     ny = mouseState.taps.get(0).y;
                 }
-//                Log.d(TAG, "sendMouseEvent button: " + button + ", action: " + action
-//                        + ", relative: " + relative + ", nx = " + nx + ", ny = " + ny
-//                        + ", delay = " + delayMs);
+                if (action != MotionEvent.ACTION_MOVE) {
+                    Log.d("LimboMouse", "[Act] sendMouseEvent: btn=" + button + ", act=" + action
+                            + ", rel=" + relative + ", nx=" + nx + ", ny=" + ny
+                            + ", delay=" + delayMs);
+                }
                 notifyAction(MachineAction.SEND_MOUSE_EVENT, new Object[]{button, action, relative ? 1 : 0, nx, ny});
                 if (delayMs > 0 && toolType != MotionEvent.TOOL_TYPE_MOUSE)
                     delay(delayMs);

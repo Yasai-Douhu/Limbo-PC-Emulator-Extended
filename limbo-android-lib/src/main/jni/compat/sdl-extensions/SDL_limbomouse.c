@@ -16,7 +16,13 @@ Modifications for SDL3 / sdl2-compat portability 2026
 #include <string.h>
 #include <jni.h>
 #include <SDL.h>
+#include <android/log.h>
 #include "SDL_limbomouse.h"
+
+#define LOGI(...) do { \
+    __android_log_print(ANDROID_LOG_INFO, "LimboMouse_Native", __VA_ARGS__); \
+    SDL_Log("LimboMouse_Native: " __VA_ARGS__); \
+} while(0)
 
 #define ACTION_DOWN 0
 #define ACTION_UP 1
@@ -83,6 +89,8 @@ JNIEXPORT void JNICALL Java_com_max2idea_android_limbo_jni_VMExecutor_nativeMous
             } else {
                 current_button_state &= ~SDL_BUTTON(sdl_button);
             }
+            LOGI("nativeMouseEvent [%s]: button=%d (sdl_btn=%d), cur_state=0x%x, rel=%d, x=%d, y=%d",
+                 (action == ACTION_DOWN ? "DOWN" : "UP"), button, sdl_button, current_button_state, relative, x, y);
 
             /* 絶対座標指定かつ有効な座標の場合のみカーソル位置を合わせる */
             if (!relative && (x != 0 || y != 0)) {
@@ -109,6 +117,9 @@ JNIEXPORT void JNICALL Java_com_max2idea_android_limbo_jni_VMExecutor_nativeMous
 
         case ACTION_MOVE:
         case ACTION_HOVER_MOVE:
+            // 高頻度ログ抑制: MOVEログは必要なデバッグ時のみ有効化
+            // LOGI("nativeMouseEvent [MOVE]: cur_state=0x%x, rel=%d, x=%d, y=%d",
+            //      current_button_state, relative, x, y);
             ev.type = SDL_MOUSEMOTION;
             ev.motion.windowID = windowID;
             ev.motion.which = SDL_TOUCH_MOUSEID;
@@ -124,6 +135,7 @@ JNIEXPORT void JNICALL Java_com_max2idea_android_limbo_jni_VMExecutor_nativeMous
             break;
 
         case ACTION_SCROLL:
+            LOGI("nativeMouseEvent [SCROLL]: x=%d, y=%d", x, y);
             ev.type = SDL_MOUSEWHEEL;
             ev.wheel.windowID = windowID;
             ev.wheel.which = SDL_TOUCH_MOUSEID;

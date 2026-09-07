@@ -4,6 +4,7 @@ import android.annotation.SuppressLint;
 import android.content.Context;
 import android.os.Handler;
 import android.os.Looper;
+import android.util.Log;
 import android.view.KeyEvent;
 import android.view.MotionEvent;
 import android.view.View;
@@ -25,6 +26,8 @@ import java.util.Map;
  * - Fnキーによるメイン/サブレイアウト（F1-F12、テンキー、ショートカット）切替
  */
 public class VirtualKeyboardController {
+
+    private static final String TAG = "LimboMouse";
 
     public interface Listener {
         // キー押下・解放イベント
@@ -51,6 +54,8 @@ public class VirtualKeyboardController {
     private boolean isRightMouseLatched = false;
     private boolean leftLongPressTriggered = false;
     private boolean rightLongPressTriggered = false;
+    private boolean leftReleasedFromHold = false;
+    private boolean rightReleasedFromHold = false;
 
     private Runnable leftHoldRunnable;
     private Runnable rightHoldRunnable;
@@ -111,6 +116,7 @@ public class VirtualKeyboardController {
             public boolean onTouch(View v, MotionEvent event) {
                 switch (event.getAction()) {
                     case MotionEvent.ACTION_DOWN:
+                        Log.d(TAG, "[VK] btnMouseLeft ACTION_DOWN: isLeftMouseLatched=" + isLeftMouseLatched);
                         if (isLeftMouseLatched) {
                             // 既にホールド中の場合はタップで解除
                             releaseLeftMouseHold();
@@ -121,6 +127,7 @@ public class VirtualKeyboardController {
                         btnMouseLeft.setPressed(true);
                         // 左クリック押下イベント送信
                         if (listener != null) {
+                            Log.d(TAG, "[VK] btnMouseLeft call onVirtualMouseDown(LEFT)");
                             listener.onVirtualMouseDown(Config.SDL_MOUSE_LEFT);
                         }
                         // 長押しタイマー開始
@@ -129,6 +136,7 @@ public class VirtualKeyboardController {
                             public void run() {
                                 leftLongPressTriggered = true;
                                 isLeftMouseLatched = true;
+                                Log.d(TAG, "[VK] btnMouseLeft Hold timer triggered -> isLeftMouseLatched=true, setText(L-HOLD)");
                                 btnMouseLeft.setPressed(false);
                                 btnMouseLeft.setBackgroundResource(R.drawable.vk_mouse_btn_latched);
                                 btnMouseLeft.setText("L-HOLD");
@@ -141,21 +149,33 @@ public class VirtualKeyboardController {
                         return true;
 
                     case MotionEvent.ACTION_UP:
+                        Log.d(TAG, "[VK] btnMouseLeft ACTION_UP: leftLongPressTriggered=" + leftLongPressTriggered
+                                + ", isLeftMouseLatched=" + isLeftMouseLatched
+                                + ", leftReleasedFromHold=" + leftReleasedFromHold);
                         handler.removeCallbacks(leftHoldRunnable);
                         btnMouseLeft.setPressed(false);
+                        if (leftReleasedFromHold) {
+                            // ホールド解除タップの指離脱時は二重送信を防止
+                            leftReleasedFromHold = false;
+                            return true;
+                        }
                         if (leftLongPressTriggered) {
                             // 長押しホールド状態に移行した場合は、指を離してもDOWN状態を維持（ドラッグ可能）
+                            Log.d(TAG, "[VK] btnMouseLeft ACTION_UP: Hold active, maintaining DOWN (not sending UP)");
                             return true;
                         }
                         // 通常の短押しクリック完了（UPイベント送信）
                         if (listener != null) {
+                            Log.d(TAG, "[VK] btnMouseLeft call onVirtualMouseUp(LEFT)");
                             listener.onVirtualMouseUp(Config.SDL_MOUSE_LEFT);
                         }
                         return true;
 
                     case MotionEvent.ACTION_CANCEL:
+                        Log.d(TAG, "[VK] btnMouseLeft ACTION_CANCEL: isLeftMouseLatched=" + isLeftMouseLatched);
                         handler.removeCallbacks(leftHoldRunnable);
                         btnMouseLeft.setPressed(false);
+                        leftReleasedFromHold = false;
                         if (!isLeftMouseLatched && listener != null) {
                             listener.onVirtualMouseUp(Config.SDL_MOUSE_LEFT);
                         }
@@ -171,6 +191,7 @@ public class VirtualKeyboardController {
             public boolean onTouch(View v, MotionEvent event) {
                 switch (event.getAction()) {
                     case MotionEvent.ACTION_DOWN:
+                        Log.d(TAG, "[VK] btnMouseRight ACTION_DOWN: isRightMouseLatched=" + isRightMouseLatched);
                         if (isRightMouseLatched) {
                             // 既にホールド中の場合はタップで解除
                             releaseRightMouseHold();
@@ -181,6 +202,7 @@ public class VirtualKeyboardController {
                         btnMouseRight.setPressed(true);
                         // 右クリック押下イベント送信
                         if (listener != null) {
+                            Log.d(TAG, "[VK] btnMouseRight call onVirtualMouseDown(RIGHT)");
                             listener.onVirtualMouseDown(Config.SDL_MOUSE_RIGHT);
                         }
                         // 長押しタイマー開始
@@ -189,6 +211,7 @@ public class VirtualKeyboardController {
                             public void run() {
                                 rightLongPressTriggered = true;
                                 isRightMouseLatched = true;
+                                Log.d(TAG, "[VK] btnMouseRight Hold timer triggered -> isRightMouseLatched=true, setText(R-HOLD)");
                                 btnMouseRight.setPressed(false);
                                 btnMouseRight.setBackgroundResource(R.drawable.vk_mouse_btn_latched);
                                 btnMouseRight.setText("R-HOLD");
@@ -201,21 +224,33 @@ public class VirtualKeyboardController {
                         return true;
 
                     case MotionEvent.ACTION_UP:
+                        Log.d(TAG, "[VK] btnMouseRight ACTION_UP: rightLongPressTriggered=" + rightLongPressTriggered
+                                + ", isRightMouseLatched=" + isRightMouseLatched
+                                + ", rightReleasedFromHold=" + rightReleasedFromHold);
                         handler.removeCallbacks(rightHoldRunnable);
                         btnMouseRight.setPressed(false);
+                        if (rightReleasedFromHold) {
+                            // ホールド解除タップの指離脱時は二重送信を防止
+                            rightReleasedFromHold = false;
+                            return true;
+                        }
                         if (rightLongPressTriggered) {
                             // 長押しホールド状態に移行した場合はDOWN維持
+                            Log.d(TAG, "[VK] btnMouseRight ACTION_UP: Hold active, maintaining DOWN (not sending UP)");
                             return true;
                         }
                         // 通常の短押しクリック完了（UPイベント送信）
                         if (listener != null) {
+                            Log.d(TAG, "[VK] btnMouseRight call onVirtualMouseUp(RIGHT)");
                             listener.onVirtualMouseUp(Config.SDL_MOUSE_RIGHT);
                         }
                         return true;
 
                     case MotionEvent.ACTION_CANCEL:
+                        Log.d(TAG, "[VK] btnMouseRight ACTION_CANCEL: isRightMouseLatched=" + isRightMouseLatched);
                         handler.removeCallbacks(rightHoldRunnable);
                         btnMouseRight.setPressed(false);
+                        rightReleasedFromHold = false;
                         if (!isRightMouseLatched && listener != null) {
                             listener.onVirtualMouseUp(Config.SDL_MOUSE_RIGHT);
                         }
@@ -228,8 +263,10 @@ public class VirtualKeyboardController {
 
     /** 左クリックのホールド解除 */
     public void releaseLeftMouseHold() {
+        Log.d(TAG, "[VK] releaseLeftMouseHold() called -> clearing latch, sending onVirtualMouseUp(LEFT)");
         isLeftMouseLatched = false;
         leftLongPressTriggered = false;
+        leftReleasedFromHold = true;
         btnMouseLeft.setBackgroundResource(R.drawable.vk_mouse_btn_bg);
         btnMouseLeft.setText("L-Click");
         if (listener != null) {
@@ -239,8 +276,10 @@ public class VirtualKeyboardController {
 
     /** 右クリックのホールド解除 */
     public void releaseRightMouseHold() {
+        Log.d(TAG, "[VK] releaseRightMouseHold() called -> clearing latch, sending onVirtualMouseUp(RIGHT)");
         isRightMouseLatched = false;
         rightLongPressTriggered = false;
+        rightReleasedFromHold = true;
         btnMouseRight.setBackgroundResource(R.drawable.vk_mouse_btn_bg);
         btnMouseRight.setText("R-Click");
         if (listener != null) {
@@ -252,7 +291,8 @@ public class VirtualKeyboardController {
      * マウスボタン（左または右）がホールド（ラッチ）状態かどうかを取得
      */
     public boolean isMouseLatched() {
-        return isLeftMouseLatched || isRightMouseLatched;
+        boolean latched = isLeftMouseLatched || isRightMouseLatched;
+        return latched;
     }
 
     /**

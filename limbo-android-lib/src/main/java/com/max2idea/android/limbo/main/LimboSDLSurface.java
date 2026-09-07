@@ -99,6 +99,11 @@ public class LimboSDLSurface extends SDLActivity.ExSDLSurface
         mouseState.x = event.getX();
         mouseState.y = event.getY();
 
+        if (action == MotionEvent.ACTION_DOWN || action == MotionEvent.ACTION_UP) {
+            Log.d("LimboMouse", "[Surface] onTouchProcess: action=" + (action == MotionEvent.ACTION_DOWN ? "DOWN" : "UP")
+                    + ", x=" + mouseState.x + ", y=" + mouseState.y);
+        }
+
         processMouseMovement(action, event.getToolType(0), mouseState.x, mouseState.y);
         processMouseButton(event, action, mouseState.x, mouseState.y);
         return false;
@@ -129,6 +134,10 @@ public class LimboSDLSurface extends SDLActivity.ExSDLSurface
         // 仮想キーボードのマウスボタンがホールド中（L-HOLDまたはR-HOLD）の場合、
         // 画面タップによるクリックイベント発行（DOWN/UP）を抑止し、ドラッグ（カーソル移動）のみを処理する
         if (sdlActivity != null && sdlActivity.isMouseLatched()) {
+            if (action == MotionEvent.ACTION_DOWN || action == MotionEvent.ACTION_UP) {
+                Log.d("LimboMouse", "[Surface] processMouseButton BLOCKED by isMouseLatched: action="
+                        + (action == MotionEvent.ACTION_DOWN ? "DOWN" : "UP"));
+            }
             return;
         }
 
