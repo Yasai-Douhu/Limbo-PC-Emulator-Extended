@@ -78,3 +78,7 @@ gitsync.sh
 !**/src/main/jniLibs/**
 !**/src/main/assets/**
 
+temp_work/
+output/
+
+

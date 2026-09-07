@@ -591,11 +591,13 @@ public class LimboSDLActivity extends SDLActivity
 
             @Override
             public void onVirtualMouseDown(int button) {
+                // トラックパッドモードの状態を維持したまま、現在のカーソル位置でボタン押下 (遅延なし: 0)
                 sendMouseEvent(button, MotionEvent.ACTION_DOWN, MotionEvent.TOOL_TYPE_FINGER, 0, 0, 0);
             }
 
             @Override
             public void onVirtualMouseUp(int button) {
+                // トラックパッドモードの状態を維持したまま、現在のカーソル位置でボタン解放 (遅延なし: 0)
                 sendMouseEvent(button, MotionEvent.ACTION_UP, MotionEvent.TOOL_TYPE_FINGER, 0, 0, 0);
             }
 
@@ -618,6 +620,13 @@ public class LimboSDLActivity extends SDLActivity
             });
         }
         applyKeyboardBottomPadding();
+    }
+
+    /**
+     * 仮想キーボードのマウスボタンがホールド中（L-HOLDまたはR-HOLD）かどうかを取得
+     */
+    public boolean isMouseLatched() {
+        return mVirtualKeyboardController != null && mVirtualKeyboardController.isMouseLatched();
     }
 
     /**

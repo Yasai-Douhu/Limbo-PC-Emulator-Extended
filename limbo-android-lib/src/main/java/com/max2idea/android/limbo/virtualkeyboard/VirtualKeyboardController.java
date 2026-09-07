@@ -117,7 +117,9 @@ public class VirtualKeyboardController {
                             return true;
                         }
                         leftLongPressTriggered = false;
-                        // 左クリック押下
+                        // 押下ハイライト表示
+                        btnMouseLeft.setPressed(true);
+                        // 左クリック押下イベント送信
                         if (listener != null) {
                             listener.onVirtualMouseDown(Config.SDL_MOUSE_LEFT);
                         }
@@ -127,8 +129,12 @@ public class VirtualKeyboardController {
                             public void run() {
                                 leftLongPressTriggered = true;
                                 isLeftMouseLatched = true;
+                                btnMouseLeft.setPressed(false);
                                 btnMouseLeft.setBackgroundResource(R.drawable.vk_mouse_btn_latched);
                                 btnMouseLeft.setText("L-HOLD");
+                                try {
+                                    btnMouseLeft.performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS);
+                                } catch (Exception ignored) {}
                             }
                         };
                         handler.postDelayed(leftHoldRunnable, MOUSE_HOLD_DELAY_MS);
@@ -136,6 +142,7 @@ public class VirtualKeyboardController {
 
                     case MotionEvent.ACTION_UP:
                         handler.removeCallbacks(leftHoldRunnable);
+                        btnMouseLeft.setPressed(false);
                         if (leftLongPressTriggered) {
                             // 長押しホールド状態に移行した場合は、指を離してもDOWN状態を維持（ドラッグ可能）
                             return true;
@@ -148,6 +155,7 @@ public class VirtualKeyboardController {
 
                     case MotionEvent.ACTION_CANCEL:
                         handler.removeCallbacks(leftHoldRunnable);
+                        btnMouseLeft.setPressed(false);
                         if (!isLeftMouseLatched && listener != null) {
                             listener.onVirtualMouseUp(Config.SDL_MOUSE_LEFT);
                         }
@@ -169,7 +177,9 @@ public class VirtualKeyboardController {
                             return true;
                         }
                         rightLongPressTriggered = false;
-                        // 右クリック押下
+                        // 押下ハイライト表示
+                        btnMouseRight.setPressed(true);
+                        // 右クリック押下イベント送信
                         if (listener != null) {
                             listener.onVirtualMouseDown(Config.SDL_MOUSE_RIGHT);
                         }
@@ -179,8 +189,12 @@ public class VirtualKeyboardController {
                             public void run() {
                                 rightLongPressTriggered = true;
                                 isRightMouseLatched = true;
+                                btnMouseRight.setPressed(false);
                                 btnMouseRight.setBackgroundResource(R.drawable.vk_mouse_btn_latched);
                                 btnMouseRight.setText("R-HOLD");
+                                try {
+                                    btnMouseRight.performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS);
+                                } catch (Exception ignored) {}
                             }
                         };
                         handler.postDelayed(rightHoldRunnable, MOUSE_HOLD_DELAY_MS);
@@ -188,11 +202,12 @@ public class VirtualKeyboardController {
 
                     case MotionEvent.ACTION_UP:
                         handler.removeCallbacks(rightHoldRunnable);
+                        btnMouseRight.setPressed(false);
                         if (rightLongPressTriggered) {
                             // 長押しホールド状態に移行した場合はDOWN維持
                             return true;
                         }
-                        // 通常の短押しクリック完了
+                        // 通常の短押しクリック完了（UPイベント送信）
                         if (listener != null) {
                             listener.onVirtualMouseUp(Config.SDL_MOUSE_RIGHT);
                         }
@@ -200,6 +215,7 @@ public class VirtualKeyboardController {
 
                     case MotionEvent.ACTION_CANCEL:
                         handler.removeCallbacks(rightHoldRunnable);
+                        btnMouseRight.setPressed(false);
                         if (!isRightMouseLatched && listener != null) {
                             listener.onVirtualMouseUp(Config.SDL_MOUSE_RIGHT);
                         }
@@ -230,6 +246,13 @@ public class VirtualKeyboardController {
         if (listener != null) {
             listener.onVirtualMouseUp(Config.SDL_MOUSE_RIGHT);
         }
+    }
+
+    /**
+     * マウスボタン（左または右）がホールド（ラッチ）状態かどうかを取得
+     */
+    public boolean isMouseLatched() {
+        return isLeftMouseLatched || isRightMouseLatched;
     }
 
     /**

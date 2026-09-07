@@ -126,6 +126,12 @@ public class LimboSDLSurface extends SDLActivity.ExSDLSurface
     }
 
     private void processMouseButton(MotionEvent event, int action, float x, float y) {
+        // 仮想キーボードのマウスボタンがホールド中（L-HOLDまたはR-HOLD）の場合、
+        // 画面タップによるクリックイベント発行（DOWN/UP）を抑止し、ドラッグ（カーソル移動）のみを処理する
+        if (sdlActivity != null && sdlActivity.isMouseLatched()) {
+            return;
+        }
+
         processPendingMouseButtonDown(action, event.getToolType(0), x, y);
         int sdlMouseButton = getMouseButton(event);
 

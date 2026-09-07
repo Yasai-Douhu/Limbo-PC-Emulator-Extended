@@ -23,14 +23,15 @@ Modifications for SDL3 / sdl2-compat portability 2026
 #define ACTION_MOVE 2
 #define ACTION_HOVER_MOVE 7
 #define ACTION_SCROLL 8
-#define BUTTON_PRIMARY 1
-#define BUTTON_SECONDARY 2
-#define BUTTON_TERTIARY 4
-#define BUTTON_BACK 8
-#define BUTTON_FORWARD 16
+/* Java側 Config.java の定数と一致させる: LEFT=1, MIDDLE=2, RIGHT=3 */
+#define BUTTON_LEFT   1
+#define BUTTON_MIDDLE 2
+#define BUTTON_RIGHT  3
 
 static int x_min = 0, x_max = 0, y_min = 0, y_max = 0;
 static bool checkBounds = false;
+/* 現在押下中のマウスボタン状態（QEMU側のドラッグ・ホールド判定に必須） */
+static Uint32 current_button_state = 0;
 
 // SDL公開イベントAPIを用いてマウスイベントを送信
 JNIEXPORT void JNICALL Java_com_max2idea_android_limbo_jni_VMExecutor_nativeMouseEvent(
@@ -44,11 +45,17 @@ JNIEXPORT void JNICALL Java_com_max2idea_android_limbo_jni_VMExecutor_nativeMous
     if (!win) {
         win = SDL_GetKeyboardFocus();
     }
-    Uint32 windowID = win ? SDL_GetWindowID(win) : 0;
+    if (!win) {
+        win = SDL_GetWindowFromID(1);
+    }
+    Uint32 windowID = win ? SDL_GetWindowID(win) : 1;
 
-    SDL_bool relativeMouseMode = relative ? SDL_TRUE : SDL_FALSE;
-    if (SDL_GetRelativeMouseMode() != relativeMouseMode) {
-        SDL_SetRelativeMouseMode(relativeMouseMode);
+    /* 仮想ボタンクリック（x=0, y=0）時は既存の相対モード状態を勝手に切り替えない */
+    if (action == ACTION_MOVE || action == ACTION_HOVER_MOVE || (x != 0 || y != 0)) {
+        SDL_bool relativeMouseMode = relative ? SDL_TRUE : SDL_FALSE;
+        if (SDL_GetRelativeMouseMode() != relativeMouseMode) {
+            SDL_SetRelativeMouseMode(relativeMouseMode);
+        }
     }
 
     if (checkBounds) {
@@ -61,9 +68,9 @@ JNIEXPORT void JNICALL Java_com_max2idea_android_limbo_jni_VMExecutor_nativeMous
     }
 
     Uint8 sdl_button = SDL_BUTTON_LEFT;
-    if (button == BUTTON_PRIMARY) sdl_button = SDL_BUTTON_LEFT;
-    else if (button == BUTTON_SECONDARY) sdl_button = SDL_BUTTON_RIGHT;
-    else if (button == BUTTON_TERTIARY) sdl_button = SDL_BUTTON_MIDDLE;
+    if (button == BUTTON_LEFT)        sdl_button = SDL_BUTTON_LEFT;
+    else if (button == BUTTON_MIDDLE) sdl_button = SDL_BUTTON_MIDDLE;
+    else if (button == BUTTON_RIGHT)  sdl_button = SDL_BUTTON_RIGHT;
 
     SDL_Event ev;
     memset(&ev, 0, sizeof(ev));
@@ -71,12 +78,20 @@ JNIEXPORT void JNICALL Java_com_max2idea_android_limbo_jni_VMExecutor_nativeMous
     switch (action) {
         case ACTION_DOWN:
         case ACTION_UP:
-            if (!relative) {
+            if (action == ACTION_DOWN) {
+                current_button_state |= SDL_BUTTON(sdl_button);
+            } else {
+                current_button_state &= ~SDL_BUTTON(sdl_button);
+            }
+
+            /* 絶対座標指定かつ有効な座標の場合のみカーソル位置を合わせる */
+            if (!relative && (x != 0 || y != 0)) {
                 SDL_Event motion_ev;
                 memset(&motion_ev, 0, sizeof(motion_ev));
                 motion_ev.type = SDL_MOUSEMOTION;
                 motion_ev.motion.windowID = windowID;
                 motion_ev.motion.which = SDL_TOUCH_MOUSEID;
+                motion_ev.motion.state = current_button_state;
                 motion_ev.motion.x = x;
                 motion_ev.motion.y = y;
                 SDL_PushEvent(&motion_ev);
@@ -97,6 +112,7 @@ JNIEXPORT void JNICALL Java_com_max2idea_android_limbo_jni_VMExecutor_nativeMous
             ev.type = SDL_MOUSEMOTION;
             ev.motion.windowID = windowID;
             ev.motion.which = SDL_TOUCH_MOUSEID;
+            ev.motion.state = current_button_state; /* ドラッグ中のボタン状態を伝達 */
             if (relative) {
                 ev.motion.xrel = x;
                 ev.motion.yrel = y;
