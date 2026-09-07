@@ -6,6 +6,8 @@ android {
 
     defaultConfig {
         applicationId "com.limbo.emu.main"
+        versionCode 720
+        versionName "7.2.0-extended"
         minSdkVersion 21
         targetSdkVersion 34
         ndk { abiFilters "armeabi-v7a","arm64-v8a", "x86", "x86_64" }

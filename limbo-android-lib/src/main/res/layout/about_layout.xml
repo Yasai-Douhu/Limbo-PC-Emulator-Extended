@@ -54,7 +54,7 @@
                 android:id="@+id/about_limbo_version"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="7.0.0"
+                android:text="7.2.0"
                 android:textSize="14sp" />
         </LinearLayout>
 

@@ -215,6 +215,14 @@ public class Dispatcher implements ViewListener {
                 break;
             case EXTRA_PARAMS:
                 getMachine().setExtraParams(convertString(property,value));
+                break;
+            case ENABLE_SSD:
+                // SSD化フラグをマシンモデルに反映して永続化
+                getMachine().setEnableSsd(convertInt(property, value));
+                break;
+            case GUESTFWD:
+                getMachine().setGuestFwd(convertString(property, value));
+                break;
             default:
                 throw new RuntimeException("Umapped UI field: " + property);
         }
