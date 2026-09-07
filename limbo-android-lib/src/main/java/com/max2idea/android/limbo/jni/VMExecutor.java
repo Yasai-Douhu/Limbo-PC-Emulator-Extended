@@ -564,25 +564,60 @@ private String getQemuLibrary() {
                 }
                 paramsList.add(imagePath);
             } else {
-                paramsList.add("-drive");
-                String param = "index=" + index;
-                param += ",if=";
-                param += hdInterface;
-                param += ",media=disk,file.locking=off";
-                if (!imagePath.equals("")) {
-                    param += ",file=" + imagePath;
-                }
+                boolean isSsd = (getMachine().getEnableSsd() == 1);
+                boolean isQ35 = getMachine().getMachineType() != null
+                        && getMachine().getMachineType().toLowerCase().contains("q35");
+                boolean isIde = (hdInterface == null || hdInterface.equals("ide") || hdInterface.equals("default") || hdInterface.isEmpty());
+
+                // キャッシュモードの決定: ユーザー指定がない(default)場合は最高速かつ安定な writeback を標準適用
                 String cache = LimboSettingsManager.getDiskCache(LimboApplication.getInstance());
-                if(cache != null && !cache.equals("default"))
-                    param += ",cache=" + cache;
-
-                // SSD化機能: TRIMおよびSSDエミュレーションパラメータの付与
-                if (getMachine().getEnableSsd() == 1) {
-                    // discard=unmap によりゲストOSからのTRIMコマンドを有効化し、SSDとして認識させる
-                    param += ",discard=unmap,detect-zeroes=unmap";
+                if (cache == null || cache.equals("default")) {
+                    cache = "writeback";
                 }
 
-                paramsList.add(param);
+                if (isSsd && isIde) {
+                    // === 高速化: バックエンド(-drive if=none)とフロントエンド(-device ide-hd)を分離し、rotation_rate=1 (SSD) を注入 ===
+                    String driveId = "ssd0" + index;
+                    String devId = "ide0" + index;
+
+                    paramsList.add("-drive");
+                    StringBuilder driveParam = new StringBuilder();
+                    driveParam.append("index=").append(index)
+                              .append(",media=disk,if=none,id=").append(driveId)
+                              .append(",file.locking=off")
+                              .append(",cache=").append(cache)
+                              .append(",discard=unmap,detect-zeroes=unmap,aio=threads")
+                              .append(",file=").append(imagePath);
+                    paramsList.add(driveParam.toString());
+
+                    // デバイスの接続
+                    paramsList.add("-device");
+                    String busUnit;
+                    if (!isQ35) {
+                        busUnit = (index < 2) ? "bus=ide.0,unit=" + index : "bus=ide.1,unit=" + (index - 2);
+                    } else {
+                        busUnit = "bus=ide." + index;
+                    }
+                    paramsList.add("ide-hd,id=" + devId + ",drive=" + driveId + "," + busUnit);
+
+                    // ゲストOS（Windows等）に回転速度1（不回転＝SSD）を通知し、デフラグ停止・TRIM有効化・SSD専用非同期IOを強制
+                    paramsList.add("-set");
+                    paramsList.add("device." + devId + ".rotation_rate=1");
+                } else {
+                    // VirtIO / SCSI / 通常HDDインターフェース
+                    paramsList.add("-drive");
+                    StringBuilder param = new StringBuilder();
+                    param.append("index=").append(index)
+                         .append(",if=").append(hdInterface != null && !hdInterface.isEmpty() ? hdInterface : "ide")
+                         .append(",media=disk,file.locking=off")
+                         .append(",cache=").append(cache)
+                         .append(",aio=threads");
+                    if (isSsd) {
+                        param.append(",discard=unmap,detect-zeroes=unmap");
+                    }
+                    param.append(",file=").append(imagePath);
+                    paramsList.add(param.toString());
+                }
             }
         }
     }
