@@ -142,6 +142,8 @@ JNIEXPORT void JNICALL Java_com_max2idea_android_limbo_jni_VMExecutor_nativeMous
             ev.wheel.x = x;
             ev.wheel.y = y;
             ev.wheel.direction = SDL_MOUSEWHEEL_NORMAL;
+            ev.wheel.preciseX = (float)x;
+            ev.wheel.preciseY = (float)y;
             SDL_PushEvent(&ev);
             break;
 

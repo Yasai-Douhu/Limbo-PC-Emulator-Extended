@@ -296,29 +296,15 @@ public class VirtualKeyboardController {
     }
 
     /**
-     * マウスホイールの設定 (UP/DOWNボタンおよび中央スワイプ領域)
+     * マウスホイールの設定 (UP/DOWNボタンの長押し連続スクロールおよび中央スワイプ領域)
      */
     @SuppressLint("ClickableViewAccessibility")
     private void setupMouseWheel() {
-        // ホイール上スクロールボタン
-        btnWheelUp.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                if (listener != null) {
-                    listener.onVirtualMouseScroll(1);
-                }
-            }
-        });
+        // ホイール上スクロールボタン (タップで1回、長押しで連続スクロール)
+        setupRepeatingWheelButton(btnWheelUp, 1);
 
-        // ホイール下スクロールボタン
-        btnWheelDown.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                if (listener != null) {
-                    listener.onVirtualMouseScroll(-1);
-                }
-            }
-        });
+        // ホイール下スクロールボタン (タップで1回、長押しで連続スクロール)
+        setupRepeatingWheelButton(btnWheelDown, -1);
 
         // 中央スワイプ領域による直感的なホイール操作
         txtWheelCenter.setOnTouchListener(new View.OnTouchListener() {
@@ -338,6 +324,44 @@ public class VirtualKeyboardController {
                             }
                             lastTouchY = event.getY();
                         }
+                        return true;
+                }
+                return false;
+            }
+        });
+    }
+
+    /**
+     * ホイールボタン（▲/▼）の連続スクロール処理
+     * タップ時は1ステップ、長押し（300ms以上）時は80ms間隔で連続スクロール
+     */
+    @SuppressLint("ClickableViewAccessibility")
+    private void setupRepeatingWheelButton(final Button btn, final int deltaY) {
+        btn.setOnTouchListener(new View.OnTouchListener() {
+            private final Runnable scrollRunnable = new Runnable() {
+                @Override
+                public void run() {
+                    if (listener != null) {
+                        listener.onVirtualMouseScroll(deltaY);
+                    }
+                    handler.postDelayed(this, 80);
+                }
+            };
+
+            @Override
+            public boolean onTouch(View v, MotionEvent event) {
+                switch (event.getAction()) {
+                    case MotionEvent.ACTION_DOWN:
+                        btn.setPressed(true);
+                        if (listener != null) {
+                            listener.onVirtualMouseScroll(deltaY);
+                        }
+                        handler.postDelayed(scrollRunnable, 300);
+                        return true;
+                    case MotionEvent.ACTION_UP:
+                    case MotionEvent.ACTION_CANCEL:
+                        btn.setPressed(false);
+                        handler.removeCallbacks(scrollRunnable);
                         return true;
                 }
                 return false;
@@ -401,7 +425,7 @@ public class VirtualKeyboardController {
         bindNormalKey(R.id.vk_key_0, KeyEvent.KEYCODE_0);
         bindNormalKey(R.id.vk_key_minus, KeyEvent.KEYCODE_MINUS);
         bindNormalKey(R.id.vk_key_equals, KeyEvent.KEYCODE_EQUALS);
-        bindNormalKey(R.id.vk_key_backspace, KeyEvent.KEYCODE_DEL);
+        bindRepeatingKey(R.id.vk_key_backspace, KeyEvent.KEYCODE_DEL, 350, 50);
 
         // 行2
         bindNormalKey(R.id.vk_key_q, KeyEvent.KEYCODE_Q);
@@ -417,7 +441,7 @@ public class VirtualKeyboardController {
         bindNormalKey(R.id.vk_key_left_bracket, KeyEvent.KEYCODE_LEFT_BRACKET);
         bindNormalKey(R.id.vk_key_right_bracket, KeyEvent.KEYCODE_RIGHT_BRACKET);
         bindNormalKey(R.id.vk_key_backslash, KeyEvent.KEYCODE_BACKSLASH);
-        bindNormalKey(R.id.vk_key_delete, KeyEvent.KEYCODE_FORWARD_DEL);
+        bindRepeatingKey(R.id.vk_key_delete, KeyEvent.KEYCODE_FORWARD_DEL, 350, 50);
 
         // 行3
         bindModifierKey(R.id.vk_key_caps, KeyEvent.KEYCODE_CAPS_LOCK);
@@ -510,7 +534,51 @@ public class VirtualKeyboardController {
         // サブ画面用のナビゲーションキー
         bindNormalKey(R.id.vk_key_sub_esc, KeyEvent.KEYCODE_ESCAPE);
         bindNormalKey(R.id.vk_key_sub_tab, KeyEvent.KEYCODE_TAB);
-        bindNormalKey(R.id.vk_key_sub_del, KeyEvent.KEYCODE_FORWARD_DEL);
+        bindRepeatingKey(R.id.vk_key_sub_del, KeyEvent.KEYCODE_FORWARD_DEL, 350, 50);
+    }
+
+    /**
+     * リピートキーのバインド (BackSpace, Delete など長押しで連続入力したいキー)
+     * - タップ: 1回入力 (KeyDown -> KeyUp)
+     * - 長押し: 350ms後に 50ms 周期で連続入力 (KeyDown -> KeyUp の繰り返し)
+     */
+    @SuppressLint("ClickableViewAccessibility")
+    private void bindRepeatingKey(int viewId, final int keyCode, final long initialDelayMs, final long repeatIntervalMs) {
+        final View v = rootView.findViewById(viewId);
+        if (v == null) return;
+
+        v.setOnTouchListener(new View.OnTouchListener() {
+            private final Runnable repeatRunnable = new Runnable() {
+                @Override
+                public void run() {
+                    if (listener != null) {
+                        listener.onVirtualKeyDown(keyCode);
+                        listener.onVirtualKeyUp(keyCode);
+                    }
+                    handler.postDelayed(this, repeatIntervalMs);
+                }
+            };
+
+            @Override
+            public boolean onTouch(View view, MotionEvent event) {
+                switch (event.getAction()) {
+                    case MotionEvent.ACTION_DOWN:
+                        v.setPressed(true);
+                        if (listener != null) {
+                            listener.onVirtualKeyDown(keyCode);
+                            listener.onVirtualKeyUp(keyCode);
+                        }
+                        handler.postDelayed(repeatRunnable, initialDelayMs);
+                        return true;
+                    case MotionEvent.ACTION_UP:
+                    case MotionEvent.ACTION_CANCEL:
+                        v.setPressed(false);
+                        handler.removeCallbacks(repeatRunnable);
+                        return true;
+                }
+                return false;
+            }
+        });
     }
 
     /**
