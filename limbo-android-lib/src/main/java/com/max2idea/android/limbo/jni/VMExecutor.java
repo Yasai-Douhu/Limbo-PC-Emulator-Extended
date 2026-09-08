@@ -569,14 +569,13 @@ private String getQemuLibrary() {
                         && getMachine().getMachineType().toLowerCase().contains("q35");
                 boolean isIde = (hdInterface == null || hdInterface.equals("ide") || hdInterface.equals("default") || hdInterface.isEmpty());
 
-                // キャッシュモードの決定: ユーザー指定がない(default)場合は最高速かつ安定な writeback を標準適用
-                String cache = LimboSettingsManager.getDiskCache(LimboApplication.getInstance());
-                if (cache == null || cache.equals("default")) {
-                    cache = "writeback";
-                }
+                // ユーザー指定のキャッシュモードを取得
+                String userCache = LimboSettingsManager.getDiskCache(LimboApplication.getInstance());
 
                 if (isSsd && isIde) {
-                    // === 高速化: バックエンド(-drive if=none)とフロントエンド(-device ide-hd)を分離し、rotation_rate=1 (SSD) を注入 ===
+                    // === IDE + SSD有効: バックエンド(-drive if=none)とフロントエンド(-device ide-hd)を分離 ===
+                    // IDEのみ writeback をデフォルト適用（SCSI/VirtIOでは cache=writeback がサポートされない）
+                    String cache = (userCache == null || userCache.equals("default")) ? "writeback" : userCache;
                     String driveId = "ssd0" + index;
                     String devId = "ide0" + index;
 
@@ -600,18 +599,32 @@ private String getQemuLibrary() {
                     }
                     paramsList.add("ide-hd,id=" + devId + ",drive=" + driveId + "," + busUnit);
 
-                    // ゲストOS（Windows等）に回転速度1（不回転＝SSD）を通知し、デフラグ停止・TRIM有効化・SSD専用非同期IOを強制
+                    // ゲストOS（Windows等）に回転速度1（不回転＝SSD）を通知し、デフラグ停止・TRIM有効化を促進
                     paramsList.add("-set");
                     paramsList.add("device." + devId + ".rotation_rate=1");
-                } else {
-                    // VirtIO / SCSI / 通常HDDインターフェース
-                    // ※ aio=threads・discard=unmap はIDEのみサポート。SCSI/VirtIOでは使用不可（QEMUクラッシュ原因）
+                } else if (isIde) {
+                    // === IDE + SSD無効: IDEは writeback をデフォルト適用 ===
+                    String cache = (userCache == null || userCache.equals("default")) ? "writeback" : userCache;
                     paramsList.add("-drive");
                     StringBuilder param = new StringBuilder();
                     param.append("index=").append(index)
-                         .append(",if=").append(hdInterface != null && !hdInterface.isEmpty() ? hdInterface : "ide")
+                         .append(",if=ide")
                          .append(",media=disk,file.locking=off")
-                         .append(",cache=").append(cache);
+                         .append(",cache=").append(cache)
+                         .append(",file=").append(imagePath);
+                    paramsList.add(param.toString());
+                } else {
+                    // === SCSI / VirtIO / その他 ===
+                    // ※ cache=writeback はこのQEMUビルドのSCSI/VirtIOでは非サポート（クラッシュ原因）
+                    // ※ ユーザーが明示的にcacheを指定した場合のみ付与する（defaultの場合は何も付けない）
+                    paramsList.add("-drive");
+                    StringBuilder param = new StringBuilder();
+                    param.append("index=").append(index)
+                         .append(",if=").append(hdInterface)
+                         .append(",media=disk,file.locking=off");
+                    if (userCache != null && !userCache.equals("default")) {
+                        param.append(",cache=").append(userCache);
+                    }
                     param.append(",file=").append(imagePath);
                     paramsList.add(param.toString());
                 }
