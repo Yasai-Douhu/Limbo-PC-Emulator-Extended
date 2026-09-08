@@ -605,16 +605,13 @@ private String getQemuLibrary() {
                     paramsList.add("device." + devId + ".rotation_rate=1");
                 } else {
                     // VirtIO / SCSI / 通常HDDインターフェース
+                    // ※ aio=threads・discard=unmap はIDEのみサポート。SCSI/VirtIOでは使用不可（QEMUクラッシュ原因）
                     paramsList.add("-drive");
                     StringBuilder param = new StringBuilder();
                     param.append("index=").append(index)
                          .append(",if=").append(hdInterface != null && !hdInterface.isEmpty() ? hdInterface : "ide")
                          .append(",media=disk,file.locking=off")
-                         .append(",cache=").append(cache)
-                         .append(",aio=threads");
-                    if (isSsd) {
-                        param.append(",discard=unmap,detect-zeroes=unmap");
-                    }
+                         .append(",cache=").append(cache);
                     param.append(",file=").append(imagePath);
                     paramsList.add(param.toString());
                 }
