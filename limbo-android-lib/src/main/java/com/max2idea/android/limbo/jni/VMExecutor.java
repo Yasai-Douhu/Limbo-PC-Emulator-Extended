@@ -534,6 +534,27 @@ private String getQemuLibrary() {
     }
 
     public void addDrives(ArrayList<String> paramsList) {
+        // SCSIインターフェースが使われているか事前チェック
+        // -nodefaults によりSCSIバスが存在しないため、SCSIドライブがある場合は
+        // SCSIコントローラデバイスを明示的に追加しないとQEMUがクラッシュする
+        boolean hasScsIDrive = isScsiInterface(getMachine().getHdaInterface())
+                || isScsiInterface(getMachine().getHdbInterface())
+                || isScsiInterface(getMachine().getHdcInterface())
+                || isScsiInterface(getMachine().getHddInterface());
+
+        if (hasScsIDrive) {
+            boolean isQ35 = getMachine().getMachineType() != null
+                    && getMachine().getMachineType().toLowerCase().contains("q35");
+            paramsList.add("-device");
+            if (isQ35) {
+                // Q35マシンはvirtio-scsiコントローラを使用
+                paramsList.add("virtio-scsi-pci,id=scsi0");
+            } else {
+                // pcマシンはLSI Logicコントローラを使用（広く互換性あり）
+                paramsList.add("lsi53c895a,id=scsi0");
+            }
+        }
+
         addHardDisk(paramsList, getDriveFilePath(getMachine().getHdaImagePath()),
                 0, getMachine().getHdaInterface());
         addHardDisk(paramsList, getDriveFilePath(getMachine().getHdbImagePath()),
@@ -544,6 +565,12 @@ private String getQemuLibrary() {
                 3, getMachine().getHddInterface());
         addSharedFolder(paramsList, getDriveFilePath(getMachine().getSharedFolderPath()));
     }
+
+    /** SCSIインターフェースかどうか判定するヘルパー */
+    private boolean isScsiInterface(String iface) {
+        return iface != null && iface.equalsIgnoreCase("scsi");
+    }
+
 
     public void addHardDisk(ArrayList<String> paramsList, String imagePath, int index, String hdInterface) {
         if (imagePath != null && !imagePath.trim().equals("")) {
@@ -613,10 +640,33 @@ private String getQemuLibrary() {
                          .append(",cache=").append(cache)
                          .append(",file=").append(imagePath);
                     paramsList.add(param.toString());
+                } else if (hdInterface.equalsIgnoreCase("scsi")) {
+                    // === SCSI: QEMU 9.x では if=scsi ショートフォームが廃止 ===
+                    // バックエンド(-drive if=none) + フロントエンド(-device scsi-hd) で分離が必要
+                    // addDrives() で事前に lsi53c895a コントローラが追加済み
+                    String driveId = "scsi-hd-" + index;
+                    String devId   = "scsi-dev-" + index;
+
+                    paramsList.add("-drive");
+                    StringBuilder driveParam = new StringBuilder();
+                    driveParam.append("if=none,id=").append(driveId)
+                              .append(",media=disk,file.locking=off");
+                    if (userCache != null && !userCache.equals("default")) {
+                        driveParam.append(",cache=").append(userCache);
+                    }
+                    driveParam.append(",file=").append(imagePath);
+                    paramsList.add(driveParam.toString());
+
+                    // scsi0バスのscsi-id=indexのユニットに接続
+                    paramsList.add("-device");
+                    paramsList.add("scsi-hd,id=" + devId
+                            + ",drive=" + driveId
+                            + ",bus=scsi0.0"
+                            + ",scsi-id=" + index);
                 } else {
-                    // === SCSI / VirtIO / その他 ===
-                    // ※ cache=writeback はこのQEMUビルドのSCSI/VirtIOでは非サポート（クラッシュ原因）
-                    // ※ ユーザーが明示的にcacheを指定した場合のみ付与する（defaultの場合は何も付けない）
+                    // === VirtIO / その他インターフェース ===
+                    // ※ cache=writeback はこのQEMUビルドのVirtIOでは非サポートの可能性があるため
+                    // ※ ユーザーが明示的にcacheを指定した場合のみ付与する
                     paramsList.add("-drive");
                     StringBuilder param = new StringBuilder();
                     param.append("index=").append(index)
