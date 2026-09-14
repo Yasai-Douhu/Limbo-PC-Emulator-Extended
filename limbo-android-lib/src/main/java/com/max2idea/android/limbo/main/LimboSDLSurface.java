@@ -25,6 +25,7 @@ import android.view.KeyEvent;
 import android.view.MotionEvent;
 import android.view.SurfaceHolder;
 import android.view.View;
+import android.view.ViewConfiguration;
 
 import com.max2idea.android.limbo.machine.MachineAction;
 
@@ -45,12 +46,16 @@ public class LimboSDLSurface extends SDLActivity.ExSDLSurface
 
     MouseState mouseState = new MouseState();
     private boolean firstTouch = false;
+    private final int touchSlop;
 
     private final LimboSDLActivity sdlActivity;
 
     public LimboSDLSurface(LimboSDLActivity sdlActivity, Context context) {
         super(context);
         this.sdlActivity = sdlActivity;
+        // Use the platform's density-aware threshold. The former fixed 20 px
+        // threshold rejected ordinary finger taps on high-density displays.
+        touchSlop = ViewConfiguration.get(context).getScaledTouchSlop();
         //XXX: we don't process keys in this view but in LimboSDLActivity
         // here we just suppress
         setOnKeyListener(this);
@@ -184,15 +189,23 @@ public class LimboSDLSurface extends SDLActivity.ExSDLSurface
 
     private void processPendingMouseButtonDown(int action, int toolType, float x, float y) {
         long delta = System.currentTimeMillis() - mouseState.down_event_time;
-        if (mouseState.down_pending && sdlActivity.isRelativeMode(toolType)
-                && (Math.abs(x - mouseState.down_x) < 20 && Math.abs(y - mouseState.down_y) < 20)
-                && ((action == MotionEvent.ACTION_MOVE && delta > 400)
+        if (!mouseState.down_pending || !sdlActivity.isRelativeMode(toolType)) {
+            return;
+        }
+
+        boolean isTap = isWithinTouchSlop(x - mouseState.down_x, y - mouseState.down_y, touchSlop);
+        if (isTap && ((action == MotionEvent.ACTION_MOVE && delta > 400)
                 || action == MotionEvent.ACTION_UP)) {
             sdlActivity.sendMouseEvent(mouseState.down_mouse_button, MotionEvent.ACTION_DOWN, toolType, 0, 0);
             mouseState.down_pending = false;
-        } else if (System.currentTimeMillis() - mouseState.down_event_time > 400) {
+        } else if (!isTap || delta > 400 || action == MotionEvent.ACTION_CANCEL) {
             mouseState.down_pending = false;
         }
+    }
+
+    /** Visible for regression tests; matches Android's density-aware tap contract. */
+    public static boolean isWithinTouchSlop(float deltaX, float deltaY, int touchSlop) {
+        return Math.abs(deltaX) <= touchSlop && Math.abs(deltaY) <= touchSlop;
     }
 
     private int getMouseButton(MotionEvent event) {
